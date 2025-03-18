@@ -1,0 +1,5 @@
+deseq2_result_long.tsv
+enrichment_results/
+protein_anno.tsv
+dist/
+__pycache__/
