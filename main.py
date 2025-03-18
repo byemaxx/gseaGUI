@@ -20,6 +20,7 @@ class EnrichmentApp(QMainWindow):
         self.gene_file_path = None
         self.progress_msg = None  # 添加进度消息变量
         self.progress_dialog = None  # 添加进度对话框变量
+        self.group_col_combo = QComboBox(self)  # 添加group列选择控件
         self.initUI()
         
     def initUI(self):
@@ -121,10 +122,13 @@ class EnrichmentApp(QMainWindow):
         self.gene_col_file_combo = QComboBox(self)
         self.rank_col_label = QLabel('排序值列:', self)
         self.rank_col_combo = QComboBox(self)
+        self.group_col_label = QLabel('分组列:', self)  # 添加分组列标签
         file_cols_layout.addWidget(self.gene_col_file_label)
         file_cols_layout.addWidget(self.gene_col_file_combo)
         file_cols_layout.addWidget(self.rank_col_label)
         file_cols_layout.addWidget(self.rank_col_combo)
+        file_cols_layout.addWidget(self.group_col_label)  # 添加分组列标签到布局
+        file_cols_layout.addWidget(self.group_col_combo)  # 添加分组列选择控件到布局
         file_input_layout.addLayout(file_cols_layout)
         
         # 直接输入部分
@@ -252,8 +256,10 @@ class EnrichmentApp(QMainWindow):
                 df = pd.read_csv(self.gene_file_path, sep='\t')
                 self.gene_col_file_combo.clear()
                 self.rank_col_combo.clear()
+                self.group_col_combo.clear()  # 清空分组列选择控件
                 self.gene_col_file_combo.addItems(df.columns)
                 self.rank_col_combo.addItems([''] + list(df.columns))
+                self.group_col_combo.addItems([''] + list(df.columns))  # 添加列名到分组列选择控件
                 self.statusBar().showMessage('基因列表文件加载成功')
             except Exception as e:
                 QMessageBox.critical(self, '错误', f'无法加载文件: {str(e)}')
@@ -320,7 +326,7 @@ class EnrichmentApp(QMainWindow):
         if not self.enrichment.gene_sets:
             QMessageBox.warning(self, '警告', '请先创建基因集')
             return
-
+        method = 'Hypergeometric' if self.hypergeometric_radio.isChecked() else 'GSEA'
         self.show_progress()
         try:
             # 获取输出设置
@@ -343,9 +349,37 @@ class EnrichmentApp(QMainWindow):
                 self.log_progress(f'正在读取文件: {self.gene_file_path}')
                 gene_col = self.gene_col_file_combo.currentText()
                 rank_col = self.rank_col_combo.currentText() if self.rank_col_combo.currentText() else None
-                genes, rank_dict = self.enrichment.load_gene_list_from_file(
-                    self.gene_file_path, gene_col, rank_col
-                )
+                group_col = self.group_col_combo.currentText() if self.group_col_combo.currentText() else None
+                df = pd.read_csv(self.gene_file_path, sep='\t')
+                if group_col:
+                    results = []
+                    for group, group_df in df.groupby(group_col):
+                        genes = group_df[gene_col].tolist()
+                        rank_dict = group_df.set_index(gene_col)[rank_col].to_dict() if rank_col else None
+                        self.log_progress(f'正在分析组: {group}')
+                        if rank_dict is None or self.hypergeometric_radio.isChecked():
+                            # 使用超几何分布
+                            self.log_progress('使用超几何分布进行富集分析...')
+                            group_results = self.enrichment.do_hypergeometric(genes)
+                            group_results['Gene_set'] = group
+                        else:
+                            # 使用GSEA
+                            self.log_progress('使用GSEA进行富集分析...')
+                            group_results = self.enrichment.do_gsea(rank_dict)
+                            group_results['Name'] = group
+                        results.append(group_results)
+                    results_df = pd.concat(results, ignore_index=True)
+                else:
+                    genes = df[gene_col].tolist()
+                    rank_dict = df.set_index(gene_col)[rank_col].to_dict() if rank_col else None
+                    if rank_dict is None or self.hypergeometric_radio.isChecked():
+                        # 使用超几何分布
+                        self.log_progress('使用超几何分布进行富集分析...')
+                        results_df = self.enrichment.do_hypergeometric(genes)
+                    else:
+                        # 使用GSEA
+                        self.log_progress('使用GSEA进行富集分析...')
+                        results_df = self.enrichment.do_gsea(rank_dict)
             else:
                 # 从文本输入读取
                 text = self.gene_text.toPlainText()
@@ -355,39 +389,33 @@ class EnrichmentApp(QMainWindow):
                     return
                 self.log_progress('正在解析输入的基因列表')
                 genes, rank_dict = self.enrichment.parse_input_genes(text)
+                if rank_dict is None or self.hypergeometric_radio.isChecked():
+                    # 使用超几何分布
+                    self.log_progress('使用超几何分布进行富集分析...')
+                    results_df = self.enrichment.do_hypergeometric(genes)
+                else:
+                    # 使用GSEA
+                    self.log_progress('使用GSEA进行富集分析...')
+                    results_df = self.enrichment.do_gsea(rank_dict)
             
-            self.log_progress(f'检测到 {len(genes)} 个基因')
-            
-            # 根据是否有rank值和用户选择决定使用哪种方法
-            if rank_dict is None or self.hypergeometric_radio.isChecked():
-                # 使用超几何分布
-                self.log_progress('使用超几何分布进行富集分析...')
-                results = self.enrichment.do_hypergeometric(genes)
-                method = "Hypergeometric"
-            else:
-                # 使用GSEA
-                self.log_progress('使用GSEA进行富集分析...')
-                results = self.enrichment.do_gsea(rank_dict)
-                method = "GSEA"
-                
-            if results is not None:
+            if results_df is not None:
                 self.hide_progress()
                 # 显示结果
                 self.results_text.clear()
                 self.results_text.append(f'使用{method}方法进行富集分析:')
                 self.results_text.append(f'输入基因数: {len(genes)}')
                 self.results_text.append('\n显著富集的前10个通路:')
-                self.results_text.append(str(results.head(10)))
+                self.results_text.append(str(results_df.head(10)))
                 
                 # 保存结果
                 output_file = os.path.join(output_dir, f'{output_prefix}_{method}.tsv')
-                results.to_csv(output_file, sep='\t', index=False)
+                results_df.to_csv(output_file, sep='\t', index=False)
                 self.log_progress(f'分析完成，结果已保存到: {output_file}')
                 
                 self.statusBar().showMessage('分析完成')
 
                 # 保存结果以供可视化使用
-                self.results = results
+                self.results = results_df
                 
                 # 如果是GSEA分析，保存rank_dict用于GSEA图
                 if rank_dict is not None and self.gsea_radio.isChecked():
