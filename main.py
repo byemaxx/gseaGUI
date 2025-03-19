@@ -488,7 +488,11 @@ class EnrichmentApp(QMainWindow):
                                 group_results = gsea_results.res2d
                                 group_results['Name'] = sub_group_name
                                 if self.save_pickle_check.isChecked():
-                                    results_file_path = os.path.join(output_dir, f'{output_prefix}_{sub_group_name}_{method}.pkl')
+                                    gsea_dir = os.path.join(output_dir, f'{output_prefix}_GSEA_Objects')
+                                    if not os.path.exists(gsea_dir):
+                                        os.makedirs(gsea_dir)
+                                                        
+                                    results_file_path = os.path.join(output_dir,'GSEA_Pickle', f'{output_prefix}_{sub_group_name}_{method}.pkl')
                                     pickle.dump(gsea_results, open(results_file_path, 'wb'))
                                     print(f'GSEA object saved to {results_file_path}')
                             results.append(group_results)
