@@ -19,7 +19,7 @@ from PyQt5.QtCore import Qt
 class GSEAVisualizationGUI(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("GSEA可视化工具")
+        self.setWindowTitle("GSEA Result Ploter")
         self.setGeometry(100, 100, 1200, 800)
         
         # 数据存储
