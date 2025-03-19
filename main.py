@@ -3,13 +3,13 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                            QComboBox, QTextEdit, QMessageBox, QProgressDialog,
                            QCheckBox, QLineEdit, QGroupBox, QGridLayout,
                            QRadioButton, QButtonGroup, QTabWidget)
-from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtCore import  Qt
 
 from enrichment_tools import EnrichmentAnalyzer
 import sys
 import os
 import pandas as pd
-
+import pickle
 class EnrichmentApp(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -20,7 +20,8 @@ class EnrichmentApp(QMainWindow):
         self.gene_file_path = None
         self.progress_msg = None  # 添加进度消息变量
         self.progress_dialog = None  # 添加进度对话框变量
-        self.group_col_combo = QComboBox(self)  # 添加group列选择控件
+        self.group_col_combo_1 = QComboBox(self)  # 添加group列选择控件
+        self.group_col_combo_2 = QComboBox(self)  # 添加group列选择控件
         self.initUI()
         
     def initUI(self):
@@ -122,13 +123,16 @@ class EnrichmentApp(QMainWindow):
         self.gene_col_file_combo = QComboBox(self)
         self.rank_col_label = QLabel('排序值列:', self)
         self.rank_col_combo = QComboBox(self)
-        self.group_col_label = QLabel('分组列:', self)  # 添加分组列标签
+        self.group_col_label_1 = QLabel('分组列_1:', self)  # 添加分组列标签
+        self.group_col_label_2 = QLabel('分组列_2:', self)  # 添加分组列标签
         file_cols_layout.addWidget(self.gene_col_file_label)
         file_cols_layout.addWidget(self.gene_col_file_combo)
         file_cols_layout.addWidget(self.rank_col_label)
         file_cols_layout.addWidget(self.rank_col_combo)
-        file_cols_layout.addWidget(self.group_col_label)  # 添加分组列标签到布局
-        file_cols_layout.addWidget(self.group_col_combo)  # 添加分组列选择控件到布局
+        file_cols_layout.addWidget(self.group_col_label_1)  # 添加分组列标签到布局
+        file_cols_layout.addWidget(self.group_col_combo_1)  # 添加分组列选择控件到布局
+        file_cols_layout.addWidget(self.group_col_label_2)  # 添加分组列标签到布局
+        file_cols_layout.addWidget(self.group_col_combo_2)
         file_input_layout.addLayout(file_cols_layout)
         
         # 直接输入部分
@@ -194,11 +198,11 @@ class EnrichmentApp(QMainWindow):
         enrich_layout.addWidget(self.run_btn)
         
         # 添加GSEA通路选择
-        gsea_layout = QHBoxLayout()
-        gsea_layout.addWidget(QLabel('GSEA通路:'))
-        self.gsea_term_combo = QComboBox()
-        gsea_layout.addWidget(self.gsea_term_combo)
-        enrich_layout.addLayout(gsea_layout)
+        # gsea_layout = QHBoxLayout()
+        # gsea_layout.addWidget(QLabel('GSEA通路:'))
+        # self.gsea_term_combo = QComboBox()
+        # gsea_layout.addWidget(self.gsea_term_combo)
+        # enrich_layout.addLayout(gsea_layout)
         
         # 将标签页添加到标签页组件
         tab_widget.addTab(anno_tab, "注释处理")
@@ -256,10 +260,13 @@ class EnrichmentApp(QMainWindow):
                 df = pd.read_csv(self.gene_file_path, sep='\t')
                 self.gene_col_file_combo.clear()
                 self.rank_col_combo.clear()
-                self.group_col_combo.clear()  # 清空分组列选择控件
+                
+                for combo in [self.group_col_combo_1, self.group_col_combo_2]:
+                    combo.clear()
+                    combo.addItems([''] + list(df.columns))
+                    
                 self.gene_col_file_combo.addItems(df.columns)
                 self.rank_col_combo.addItems([''] + list(df.columns))
-                self.group_col_combo.addItems([''] + list(df.columns))  # 添加列名到分组列选择控件
                 self.statusBar().showMessage('基因列表文件加载成功')
             except Exception as e:
                 QMessageBox.critical(self, '错误', f'无法加载文件: {str(e)}')
@@ -280,7 +287,7 @@ class EnrichmentApp(QMainWindow):
                 QMessageBox.information(self, '成功', '基因集创建成功')
                 self.statusBar().showMessage('基因集创建成功')
                 # 显示基因集统计信息
-                self.results_text.append(f'基因集创建完成:')
+                self.results_text.append('基因集创建完成:')
                 self.results_text.append(f'- 总通路数: {len(self.enrichment.gene_sets)}')
                 total_genes = set()
                 for genes in self.enrichment.gene_sets.values():
@@ -349,28 +356,73 @@ class EnrichmentApp(QMainWindow):
                 self.log_progress(f'正在读取文件: {self.gene_file_path}')
                 gene_col = self.gene_col_file_combo.currentText()
                 rank_col = self.rank_col_combo.currentText() if self.rank_col_combo.currentText() else None
-                group_col = self.group_col_combo.currentText() if self.group_col_combo.currentText() else None
+                group_col1 = self.group_col_combo_1.currentText() if self.group_col_combo_1.currentText() else None
+                group_col2 = self.group_col_combo_2.currentText() if self.group_col_combo_2.currentText() else None
                 df = pd.read_csv(self.gene_file_path, sep='\t')
-                if group_col:
+                if group_col1 or group_col2:
                     results = []
-                    for group, group_df in df.groupby(group_col):
-                        genes = group_df[gene_col].tolist()
-                        rank_dict = group_df.set_index(gene_col)[rank_col].to_dict() if rank_col else None
-                        self.log_progress(f'正在分析组: {group}')
-                        if rank_dict is None or self.hypergeometric_radio.isChecked():
-                            # 使用超几何分布
-                            self.log_progress('使用超几何分布进行富集分析...')
-                            group_results = self.enrichment.do_hypergeometric(genes)
-                            group_results['Gene_set'] = group
-                        else:
-                            # 使用GSEA
-                            self.log_progress('使用GSEA进行富集分析...')
-                            group_results = self.enrichment.do_gsea(rank_dict)
-                            group_results['Name'] = group
+                    if group_col1 == group_col2:
+                        QMessageBox.warning(self, '警告', '分组列1, 2 不能相同')
+                        self.hide_progress()
+                        return
+                    
+                    group1_list = df[group_col1].unique() if group_col1 else [None]
+                    group2_list = df[group_col2].unique() if group_col2 else [None]
+                    
+                    print(f'group1_list: {group1_list}')
+                    print(f'group2_list: {group2_list}')
+                    
+                    for group1 in group1_list:
+                        group_df = df[df[group_col1] == group1] if group_col1 else df
+                        for group2 in group2_list:
+                            group2_df = group_df[group_df[group_col2] == group2] if group_col2 else group_df
+                            if len(group2_df) == 0:
+                                print(f'empty for {group1} and {group2}')
+                                continue
+                        
+                            sub_group_name = f'{group1}~{group2}' if group1 and group2 else group1 or group2
+                            genes = group2_df[gene_col].tolist()
+                            # check if gene list is unique
+                            if len(genes) != len(set(genes)):
+                                # warning and ask if user wants to continue
+                                reply = QMessageBox.question(self, '警告', f'基因列表中存在重复基因，是否继续？{sub_group_name}',
+                                                                QMessageBox.Yes, QMessageBox.No)
+                                if reply == QMessageBox.No:
+                                    self.hide_progress()
+                                    return
+                                
+                            rank_dict = group2_df.set_index(gene_col)[rank_col].to_dict() if rank_col else None
+                            self.log_progress(f'正在分析组: {sub_group_name}')
+                            if rank_dict is None or self.hypergeometric_radio.isChecked():
+                                # 使用超几何分布
+                                self.log_progress('使用超几何分布进行富集分析...')
+                                group_results = self.enrichment.do_hypergeometric(genes)
+                                group_results['Gene_set'] = sub_group_name
+                            else:
+                                # 使用GSEA
+                                self.log_progress('使用GSEA进行富集分析...')
+                                gsea_results = self.enrichment.do_gsea(rank_dict)
+                                # gsea_results.plot(terms=gsea_results.res2d.Term[1])
+                                group_results = gsea_results.res2d
+                                group_results['Name'] = sub_group_name
+                                # save results object to file for visualization
+                                results_file_path = os.path.join(output_dir, f'{output_prefix}_{sub_group_name}_{method}.pkl')
+                                pickle.dump(gsea_results, open(results_file_path, 'wb'))
+                                print(f'GSEA object saved to {results_file_path}')
+                            
                         results.append(group_results)
                     results_df = pd.concat(results, ignore_index=True)
                 else:
                     genes = df[gene_col].tolist()
+                    if len(genes) != len(set(genes)):
+                        # warning and ask if user wants to continue
+                        reply = QMessageBox.question(self, '警告', '基因列表中存在重复基因，是否继续？',
+                                                        QMessageBox.Yes, QMessageBox.No)
+                        if reply == QMessageBox.No:
+                            self.hide_progress()
+                            return
+                        
+                        
                     rank_dict = df.set_index(gene_col)[rank_col].to_dict() if rank_col else None
                     if rank_dict is None or self.hypergeometric_radio.isChecked():
                         # 使用超几何分布
@@ -379,7 +431,12 @@ class EnrichmentApp(QMainWindow):
                     else:
                         # 使用GSEA
                         self.log_progress('使用GSEA进行富集分析...')
-                        results_df = self.enrichment.do_gsea(rank_dict)
+                        gsea_results = self.enrichment.do_gsea(rank_dict)
+                        results_df = gsea_results.res2d
+                        # save results object to file for visualization
+                        results_file_path = os.path.join(output_dir, f'{output_prefix}_{method}.pkl')
+                        pickle.dump(gsea_results, open(results_file_path, 'wb'))
+                        print(f'GSEA object saved to {results_file_path}')
             else:
                 # 从文本输入读取
                 text = self.gene_text.toPlainText()
@@ -396,7 +453,8 @@ class EnrichmentApp(QMainWindow):
                 else:
                     # 使用GSEA
                     self.log_progress('使用GSEA进行富集分析...')
-                    results_df = self.enrichment.do_gsea(rank_dict)
+                    res = self.enrichment.do_gsea(rank_dict)
+                    results_df = res.res2d
             
             if results_df is not None:
                 self.hide_progress()
@@ -423,10 +481,7 @@ class EnrichmentApp(QMainWindow):
                 else:
                     self.rank_dict = None
                 
-                # 更新GSEA通路选择下拉框
-                self.gsea_term_combo.clear()
-                if self.enrichment.gene_sets:
-                    self.gsea_term_combo.addItems(list(self.enrichment.gene_sets.keys()))
+
             else:
                 self.hide_progress()
                 QMessageBox.warning(self, '警告', '分析失败')

@@ -24,60 +24,71 @@ class EnrichmentAnalyzer:
         self.log(f'成功加载注释文件，包含{len(self.df_anno)}行数据')
         return list(self.df_anno.columns)
 
-    def create_gene_sets(self, gene_col, anno_col, use_split=True, separator="==========="):
-        """创建基因集"""
+    from typing import Dict, Set
+    
+    def create_gene_sets(self, gene_col: str, anno_col: str, use_split: bool = True, separator: str = "|") -> bool:
+        """创建基因集
+        
+        Args:
+            gene_col: 基因列名
+            anno_col: 注释列名
+            use_split: 是否分割注释
+            separator: 分隔符
+        
+        Returns:
+            bool: 是否创建成功
+        """
         if self.df_anno is None:
+            self.log("错误：未加载注释文件")
             return False
         
-        self.log(f'开始创建基因集...')
-        self.log(f'使用列: {gene_col} -> {anno_col}')
-        
-        gene_sets = {}
-        total_rows = len(self.df_anno)
-        processed = 0
-        valid_entries = 0
-        
-        for index, row in self.df_anno.iterrows():
-            processed += 1
-            if processed % 1000 == 0:
-                self.log(f'处理进度: {processed}/{total_rows} ({(processed/total_rows*100):.1f}%)')
+        try:
+            self.log(f'开始创建基因集...')
+            self.log(f'使用列: {gene_col} -> {anno_col}')
             
-            gene = str(row[gene_col])
-            if gene in ['None', '-', 'not_found'] or pd.isnull(gene):
-                continue
+            # 预处理：移除无效数据
+            INVALID_VALUES = {'None', '-', 'not_found', 'nan'}
+            valid_mask = ~(
+                self.df_anno[gene_col].astype(str).isin(INVALID_VALUES) |
+                self.df_anno[anno_col].astype(str).isin(INVALID_VALUES) |
+                self.df_anno[gene_col].isna() |
+                self.df_anno[anno_col].isna()
+            )
+            
+            valid_data = self.df_anno[valid_mask]
+            valid_entries = len(valid_data)
+            
+            # 使用字典推导式创建基因集
+            gene_sets: Dict[str, Set[str]] = {}
+            total_rows = len(valid_data)
+            
+            for idx, (gene, pathway) in enumerate(zip(valid_data[gene_col], valid_data[anno_col]), 1):
+                if idx % 1000 == 0:
+                    self.log(f'处理进度: {idx}/{total_rows} ({(idx/total_rows*100):.1f}%)')
                 
-            pathway = str(row[anno_col])
-            if pathway in ['None', '-', 'not_found'] or pd.isnull(pathway):
-                continue
-            
-            valid_entries += 1
-            if use_split:
-                pathways = pathway.split(separator)
-            else:
-                pathways = [pathway]
+                pathways = pathway.split(separator) if use_split else [pathway]
                 
-            for path in pathways:
-                path = path.strip()
-                if not path:
-                    continue
-                if path not in gene_sets:
-                    gene_sets[path] = []
-                if gene not in gene_sets[path]:
-                    gene_sets[path].append(gene)
-
-        # 统计信息
-        total_unique_genes = set()
-        for genes in gene_sets.values():
-            total_unique_genes.update(genes)
+                for path in (p.strip() for p in pathways if p.strip()):
+                    if path not in gene_sets:
+                        gene_sets[path] = set()
+                    gene_sets[path].add(str(gene))
+    
+            # 统计信息
+            total_unique_genes = set().union(*gene_sets.values())
             
-        self.log(f'\n基因集创建完成:')
-        self.log(f'- 总条目数: {total_rows}')
-        self.log(f'- 有效条目数: {valid_entries}')
-        self.log(f'- 通路数量: {len(gene_sets)}')
-        self.log(f'- 独特基因数: {len(total_unique_genes)}')
-        
-        self.gene_sets = gene_sets
-        return True
+            self.log(f'\n基因集创建完成:')
+            self.log(f'- 总条目数: {total_rows}')
+            self.log(f'- 有效条目数: {valid_entries}')
+            self.log(f'- 通路数量: {len(gene_sets)}')
+            self.log(f'- 独特基因数: {len(total_unique_genes)}')
+            
+            # 转换set为list以保持与原代码兼容
+            self.gene_sets = {k: list(v) for k, v in gene_sets.items()}
+            return True
+            
+        except Exception as e:
+            self.log(f"创建基因集时发生错误: {str(e)}")
+            return False
         
     def load_gene_list_from_file(self, file_path, gene_col=None, rank_col=None):
         """从文件加载基因列表"""
@@ -170,7 +181,7 @@ class EnrichmentAnalyzer:
             )
             
             self.log(f'分析完成，发现 {len(pre_res.res2d)} 个富集结果')
-            return pre_res.res2d
+            return pre_res
         except Exception as e:
             self.log(f"GSEA分析失败: {str(e)}")
             return None
