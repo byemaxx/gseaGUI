@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                            QHBoxLayout, QPushButton, QFileDialog, QLabel, 
                            QComboBox, QTextEdit, QMessageBox, QProgressDialog,
-                           QCheckBox, QLineEdit, QGroupBox, QGridLayout,
+                           QCheckBox, QLineEdit, QGroupBox, QGridLayout,QSizePolicy,
                            QRadioButton, QButtonGroup, QTabWidget)
 from PyQt5.QtCore import  Qt
 
@@ -23,6 +23,8 @@ class EnrichmentApp(QMainWindow):
         self.group_col_combo_1 = QComboBox(self)  # 添加group列选择控件
         self.group_col_combo_2 = QComboBox(self)  # 添加group列选择控件
         self.group_col_combo_3 = QComboBox(self)  # 添加group列选择控件
+        self.save_pickle_check = QCheckBox('保存GSEA结果为pickle文件', self)
+        self.save_pickle_check.setChecked(False)
         self.initUI()
         
     def initUI(self):
@@ -138,6 +140,21 @@ class EnrichmentApp(QMainWindow):
         file_cols_layout.addWidget(self.group_col_label_3)  # 添加分组列标签到布局
         file_cols_layout.addWidget(self.group_col_combo_3)  # 添加分组列选择控件到布局
         file_input_layout.addLayout(file_cols_layout)
+        # set minimum horizontal policy for labels
+        self.gene_col_file_label.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
+        self.rank_col_label.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
+        self.group_col_label_1.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
+        self.group_col_label_2.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
+        self.group_col_label_3.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
+        
+        # set preferred horizontal policy for comboboxes
+        self.gene_col_file_combo.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum))
+        self.rank_col_combo.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum))
+        self.group_col_combo_1.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum))
+        self.group_col_combo_2.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum))
+        self.group_col_combo_3.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum))
+        
+        
         
         # 直接输入部分
         self.text_input_widget = QWidget()
@@ -189,9 +206,12 @@ class EnrichmentApp(QMainWindow):
         output_layout.addWidget(self.output_prefix_label, 1, 0)
         output_layout.addWidget(self.output_prefix_input, 1, 1)
         
+        # 添加保存pickle选项
+        output_layout.addWidget(self.save_pickle_check, 2, 0, 1, 3)
+        
         output_group.setLayout(output_layout)
         enrich_layout.addWidget(output_group)
-
+        
         # 移除可视化相关代码
         viz_layout = QHBoxLayout()
         enrich_layout.addLayout(viz_layout)
@@ -201,13 +221,7 @@ class EnrichmentApp(QMainWindow):
         self.run_btn.clicked.connect(self.run_analysis)
         enrich_layout.addWidget(self.run_btn)
         
-        # 添加GSEA通路选择
-        # gsea_layout = QHBoxLayout()
-        # gsea_layout.addWidget(QLabel('GSEA通路:'))
-        # self.gsea_term_combo = QComboBox()
-        # gsea_layout.addWidget(self.gsea_term_combo)
-        # enrich_layout.addLayout(gsea_layout)
-        
+
         # 将标签页添加到标签页组件
         tab_widget.addTab(anno_tab, "注释处理")
         tab_widget.addTab(enrich_tab, "富集分析")
@@ -411,13 +425,13 @@ class EnrichmentApp(QMainWindow):
                                     # 使用GSEA
                                     self.log_progress('使用GSEA进行富集分析...')
                                     gsea_results = self.enrichment.do_gsea(rank_dict)
-                                    # gsea_results.plot(terms=gsea_results.res2d.Term[1])
                                     group_results = gsea_results.res2d
                                     group_results['Name'] = sub_group_name
-                                    # save results object to file for visualization
-                                    results_file_path = os.path.join(output_dir, f'{output_prefix}_{sub_group_name}_{method}.pkl')
-                                    pickle.dump(gsea_results, open(results_file_path, 'wb'))
-                                    print(f'GSEA object saved to {results_file_path}')
+                                    # 根据选项保存结果对象到文件
+                                    if self.save_pickle_check.isChecked():
+                                        results_file_path = os.path.join(output_dir, f'{output_prefix}_{sub_group_name}_{method}.pkl')
+                                        pickle.dump(gsea_results, open(results_file_path, 'wb'))
+                                        print(f'GSEA object saved to {results_file_path}')
                                 
                                 results.append(group_results)
                     results_df = pd.concat(results, ignore_index=True)
@@ -442,10 +456,11 @@ class EnrichmentApp(QMainWindow):
                         self.log_progress('使用GSEA进行富集分析...')
                         gsea_results = self.enrichment.do_gsea(rank_dict)
                         results_df = gsea_results.res2d
-                        # save results object to file for visualization
-                        results_file_path = os.path.join(output_dir, f'{output_prefix}_{method}.pkl')
-                        pickle.dump(gsea_results, open(results_file_path, 'wb'))
-                        print(f'GSEA object saved to {results_file_path}')
+                        # 根据选项保存结果对象到文件
+                        if self.save_pickle_check.isChecked():
+                            results_file_path = os.path.join(output_dir, f'{output_prefix}_{method}.pkl')
+                            pickle.dump(gsea_results, open(results_file_path, 'wb'))
+                            print(f'GSEA object saved to {results_file_path}')
             else:
                 # 从文本输入读取
                 text = self.gene_text.toPlainText()
@@ -464,6 +479,11 @@ class EnrichmentApp(QMainWindow):
                     self.log_progress('使用GSEA进行富集分析...')
                     res = self.enrichment.do_gsea(rank_dict)
                     results_df = res.res2d
+                    # 根据选项保存结果对象到文件
+                    if self.save_pickle_check.isChecked():
+                        results_file_path = os.path.join(output_dir, f'{output_prefix}_{method}.pkl')
+                        pickle.dump(res, open(results_file_path, 'wb'))
+                        print(f'GSEA object saved to {results_file_path}')
             
             if results_df is not None:
                 self.hide_progress()
