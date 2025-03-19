@@ -28,7 +28,7 @@ class EnrichmentApp(QMainWindow):
         self.initUI()
         
     def initUI(self):
-        self.setWindowTitle('Gene Set Enrichment Analysis v0.2')
+        self.setWindowTitle('Gene Set Enrichment Analysis v0.3'
         self.setGeometry(100, 100, 1200, 800)
         
         # 创建中央部件和主布局
@@ -48,14 +48,22 @@ class EnrichmentApp(QMainWindow):
         file_group = QGroupBox("注释文件设置")
         file_layout = QVBoxLayout()
         
+        # 创建标签页
+        file_tab_widget = QTabWidget()
+        file_layout.addWidget(file_tab_widget)
+        
+        # === 子标签页：注释文件 ===
+        anno_file_tab = QWidget()
+        anno_file_layout = QVBoxLayout(anno_file_tab)
+        
         # 注释文件选择
-        anno_file_layout = QHBoxLayout()
+        anno_file_select_layout = QHBoxLayout()
         self.anno_btn = QPushButton('选择注释文件', self)
         self.anno_btn.clicked.connect(self.load_annotation_file)
         self.anno_label = QLabel('未选择文件', self)
-        anno_file_layout.addWidget(self.anno_btn)
-        anno_file_layout.addWidget(self.anno_label)
-        file_layout.addLayout(anno_file_layout)
+        anno_file_select_layout.addWidget(self.anno_btn)
+        anno_file_select_layout.addWidget(self.anno_label)
+        anno_file_layout.addLayout(anno_file_select_layout)
         
         # 列选择
         cols_layout = QGridLayout()
@@ -67,7 +75,7 @@ class EnrichmentApp(QMainWindow):
         cols_layout.addWidget(self.gene_col_combo, 0, 1)
         cols_layout.addWidget(self.anno_col_label, 0, 2)
         cols_layout.addWidget(self.anno_col_combo, 0, 3)
-        file_layout.addLayout(cols_layout)
+        anno_file_layout.addLayout(cols_layout)
         
         # 分隔符设置
         split_layout = QHBoxLayout()
@@ -79,12 +87,29 @@ class EnrichmentApp(QMainWindow):
         split_layout.addWidget(self.split_check)
         split_layout.addWidget(self.separator_label)
         split_layout.addWidget(self.separator_input)
-        file_layout.addLayout(split_layout)
+        anno_file_layout.addLayout(split_layout)
         
         # 创建基因集按钮
         self.create_gmt_btn = QPushButton('创建基因集', self)
         self.create_gmt_btn.clicked.connect(self.create_gene_sets)
-        file_layout.addWidget(self.create_gmt_btn)
+        anno_file_layout.addWidget(self.create_gmt_btn)
+        
+        file_tab_widget.addTab(anno_file_tab, "注释文件")
+        
+        # === 子标签页：GMT文件 ===
+        gmt_file_tab = QWidget()
+        gmt_file_layout = QVBoxLayout(gmt_file_tab)
+        
+        # GMT文件选择
+        gmt_file_select_layout = QHBoxLayout()
+        self.gmt_btn = QPushButton('选择GMT文件', self)
+        self.gmt_btn.clicked.connect(self.load_gmt_file)
+        self.gmt_label = QLabel('未选择文件', self)
+        gmt_file_select_layout.addWidget(self.gmt_btn)
+        gmt_file_select_layout.addWidget(self.gmt_label)
+        gmt_file_layout.addLayout(gmt_file_select_layout)
+        
+        file_tab_widget.addTab(gmt_file_tab, "GMT文件")
         
         file_group.setLayout(file_layout)
         anno_layout.addWidget(file_group)
@@ -344,7 +369,18 @@ class EnrichmentApp(QMainWindow):
             self.progress_dialog = None
         QApplication.processEvents()
 
-
+    def load_gmt_file(self):
+        """加载GMT文件"""
+        fname, _ = QFileDialog.getOpenFileName(self, '选择GMT文件', '', 
+                                             'GMT files (*.gmt);;All files (*.*)')
+        if fname:
+            try:
+                self.gmt_file_path = os.path.abspath(fname)  # 保存完整路径
+                self.gmt_label.setText(os.path.basename(fname))
+                self.enrichment.load_gmt(self.gmt_file_path)
+                self.statusBar().showMessage('GMT文件加载成功')
+            except Exception as e:
+                QMessageBox.critical(self, '错误', f'无法加载文件: {str(e)}')
 
     def run_analysis(self):
         """运行富集分析"""
@@ -374,6 +410,11 @@ class EnrichmentApp(QMainWindow):
                 self.log_progress(f'正在读取文件: {self.gene_file_path}')
                 gene_col = self.gene_col_file_combo.currentText()
                 rank_col = self.rank_col_combo.currentText() if self.rank_col_combo.currentText() else None
+                if rank_col is None and method == 'GSEA':
+                    QMessageBox.warning(self, '警告', 'GSEA方法需要排序值列')
+                    self.hide_progress()
+                    return
+                
                 group_col1 = self.group_col_combo_1.currentText() if self.group_col_combo_1.currentText() else None
                 group_col2 = self.group_col_combo_2.currentText() if self.group_col_combo_2.currentText() else None
                 group_col3 = self.group_col_combo_3.currentText() if self.group_col_combo_3.currentText() else None
@@ -495,11 +536,8 @@ class EnrichmentApp(QMainWindow):
                 results_df.to_csv(output_file, sep='\t', index=False)
                 self.log_progress(f'分析完成，结果已保存到: {output_file}')
                 
-                self.statusBar().showMessage('分析完成')
+                self.statusBar().showMessage('分析完成') 
 
-
-                
-                
 
             else:
                 self.hide_progress()

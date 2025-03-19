@@ -19,7 +19,7 @@ class EnrichmentAnalyzer:
             
     def load_annotation(self, file_path):
         """加载注释文件"""
-        self.log(f'正在加载注释文件...')
+        self.log('正在加载注释文件...')
         self.df_anno = pd.read_csv(file_path, sep='\t')
         self.log(f'成功加载注释文件，包含{len(self.df_anno)}行数据')
         return list(self.df_anno.columns)
@@ -43,7 +43,7 @@ class EnrichmentAnalyzer:
             return False
         
         try:
-            self.log(f'开始创建基因集...')
+            self.log('开始创建基因集...')
             self.log(f'使用列: {gene_col} -> {anno_col}')
             
             # 预处理：移除无效数据
@@ -76,7 +76,7 @@ class EnrichmentAnalyzer:
             # 统计信息
             total_unique_genes = set().union(*gene_sets.values())
             
-            self.log(f'\n基因集创建完成:')
+            self.log('\n基因集创建完成:')
             self.log(f'- 总条目数: {total_rows}')
             self.log(f'- 有效条目数: {valid_entries}')
             self.log(f'- 通路数量: {len(gene_sets)}')
@@ -92,7 +92,7 @@ class EnrichmentAnalyzer:
         
     def load_gene_list_from_file(self, file_path, gene_col=None, rank_col=None):
         """从文件加载基因列表"""
-        self.log(f'正在读取基因列表文件...')
+        self.log('正在读取基因列表文件...')
         df = pd.read_csv(file_path, sep='\t')
         self.log(f'文件包含 {len(df)} 行数据')
         
@@ -185,3 +185,21 @@ class EnrichmentAnalyzer:
         except Exception as e:
             self.log(f"GSEA分析失败: {str(e)}")
             return None
+
+    def load_gmt(self, file_path):
+        """加载GMT文件并转换为背景基因集"""
+        self.log('正在加载GMT文件...')
+        gene_sets = {}
+        try:
+            with open(file_path, 'r') as f:
+                for line in f:
+                    parts = line.strip().split('\t')
+                    if len(parts) < 3:
+                        continue
+                    pathway = parts[0]
+                    genes = parts[2:]
+                    gene_sets[pathway] = set(genes)
+            self.gene_sets = {k: list(v) for k, v in gene_sets.items()}
+            self.log(f'成功加载GMT文件，包含{len(gene_sets)}个基因集')
+        except Exception as e:
+            self.log(f'加载GMT文件失败: {str(e)}')
