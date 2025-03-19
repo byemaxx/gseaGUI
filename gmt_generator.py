@@ -56,10 +56,10 @@ class GMTGenerator(QMainWindow):
         
         # 分隔符设置
         self.split_check = QCheckBox('启用注释分割', self)
-        self.split_check.setChecked(True)
+        self.split_check.setChecked(False)
         self.separator_label = QLabel('分隔符:', self)
         self.separator_input = QLineEdit(self)
-        self.separator_input.setText('===========')
+        self.separator_input.setText('|')
         process_layout.addWidget(self.split_check, 0, 0)
         process_layout.addWidget(self.separator_label, 0, 1)
         process_layout.addWidget(self.separator_input, 0, 2)
@@ -75,7 +75,7 @@ class GMTGenerator(QMainWindow):
         # 无效值过滤
         self.invalid_values_label = QLabel('无效值 (用逗号分隔):', self)
         self.invalid_values_input = QLineEdit(self)
-        self.invalid_values_input.setText('None,-,not_found,NA')
+        self.invalid_values_input.setText('None,-,not_found,NA,nan')
         process_layout.addWidget(self.invalid_values_label, 2, 0)
         process_layout.addWidget(self.invalid_values_input, 2, 1, 1, 2)
         
@@ -178,7 +178,7 @@ class GMTGenerator(QMainWindow):
             separator = self.separator_input.text()
             min_genes = self.min_genes_spin.value()
             output_dir = self.output_dir_input.text()
-            invalid_values = [x.strip() for x in self.invalid_values_input.text().split(',')]
+            invalid_values = set(x.strip() for x in self.invalid_values_input.text().split(','))
             
             self.log('\n开始生成GMT文件...')
             self.log(f'使用设置:')
@@ -197,42 +197,30 @@ class GMTGenerator(QMainWindow):
             # 生成gene sets
             gene_sets = {}
             total_rows = len(self.df_anno)
-            processed_rows = 0
             valid_annotations = 0
             
             for index, row in self.df_anno.iterrows():
-                processed_rows += 1
-                if processed_rows % 1000 == 0:
-                    self.progress.setValue(int(processed_rows/total_rows * 100))
-                    self.log(f'处理进度: {processed_rows}/{total_rows}')
-                
                 gene_id = str(row[id_col])
-                if gene_id in invalid_values or pd.isnull(gene_id):
-                    continue
-                    
                 annotation = str(row[anno_col])
-                if annotation in invalid_values or pd.isnull(annotation):
+                
+                if gene_id in invalid_values or pd.isnull(gene_id) or annotation in invalid_values or pd.isnull(annotation):
                     continue
                 
                 valid_annotations += 1
-                if use_split:
-                    pathways = [p.strip() for p in annotation.split(separator)]
-                else:
-                    pathways = [annotation.strip()]
-                    
+                pathways = [p.strip() for p in annotation.split(separator)] if use_split else [annotation.strip()]
+                
                 for pathway in pathways:
-                    if not pathway or pathway in invalid_values:
-                        continue
-                    if pathway not in gene_sets:
-                        gene_sets[pathway] = []
-                    gene_sets[pathway].append(gene_id)
+                    if pathway and pathway not in invalid_values:
+                        if pathway not in gene_sets:
+                            gene_sets[pathway] = set()
+                        gene_sets[pathway].add(gene_id)
+                
+                if (index + 1) % 5000 == 0:
+                    self.progress.setValue(int((index + 1) / total_rows * 100))
+                    self.log(f'处理进度: {index + 1}/{total_rows}')
             
             # 移除重复基因并应用最小基因数过滤
-            filtered_gene_sets = {}
-            for pathway, genes in gene_sets.items():
-                unique_genes = list(set(genes))
-                if len(unique_genes) >= min_genes:
-                    filtered_gene_sets[pathway] = unique_genes
+            filtered_gene_sets = {pathway: list(genes) for pathway, genes in gene_sets.items() if len(genes) >= min_genes}
             
             # 保存GMT文件
             output_file = os.path.join(output_dir, f'{anno_col}_geneset.gmt')
@@ -264,6 +252,7 @@ class GMTGenerator(QMainWindow):
             QMessageBox.critical(self, '错误', f'生成过程中出错: {str(e)}')
             self.log(f'错误: 生成失败 - {str(e)}')
             self.progress.setValue(0)
+
 
 def main():
     app = QApplication(sys.argv)

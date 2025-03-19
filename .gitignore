@@ -3,3 +3,4 @@ enrichment_results/
 protein_anno.tsv
 dist/
 __pycache__/
+gmt_files/
