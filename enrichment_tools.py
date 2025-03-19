@@ -26,7 +26,7 @@ class EnrichmentAnalyzer:
 
     from typing import Dict, Set
     
-    def create_gene_sets(self, gene_col: str, anno_col: str, use_split: bool = True, separator: str = "|") -> bool:
+    def create_gene_sets(self, gene_col: str, anno_col: str, use_split: bool = True, separator: str = "|", invalid_values: set = None) -> bool:
         """创建基因集
         
         Args:
@@ -34,6 +34,7 @@ class EnrichmentAnalyzer:
             anno_col: 注释列名
             use_split: 是否分割注释
             separator: 分隔符
+            invalid_values: 无效值集合
         
         Returns:
             bool: 是否创建成功
@@ -42,15 +43,17 @@ class EnrichmentAnalyzer:
             self.log("错误：未加载注释文件")
             return False
         
+        if invalid_values is None:
+            invalid_values = {'None', '-', 'not_found', 'nan'}
+        
         try:
             self.log('开始创建基因集...')
             self.log(f'使用列: {gene_col} -> {anno_col}')
             
             # 预处理：移除无效数据
-            INVALID_VALUES = {'None', '-', 'not_found', 'nan'}
             valid_mask = ~(
-                self.df_anno[gene_col].astype(str).isin(INVALID_VALUES) |
-                self.df_anno[anno_col].astype(str).isin(INVALID_VALUES) |
+                self.df_anno[gene_col].astype(str).isin(invalid_values) |
+                self.df_anno[anno_col].astype(str).isin(invalid_values) |
                 self.df_anno[gene_col].isna() |
                 self.df_anno[anno_col].isna()
             )
@@ -202,4 +205,4 @@ class EnrichmentAnalyzer:
             self.gene_sets = {k: list(v) for k, v in gene_sets.items()}
             self.log(f'成功加载GMT文件，包含{len(gene_sets)}个基因集')
         except Exception as e:
-            self.log(f'加载GMT文件失败: {str(e)}')
+            self.log(f"载GMT文件失败: {str(e)}")

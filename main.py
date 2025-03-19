@@ -28,7 +28,7 @@ class EnrichmentApp(QMainWindow):
         self.initUI()
         
     def initUI(self):
-        self.setWindowTitle('Gene Set Enrichment Analysis v0.3'
+        self.setWindowTitle('Gene Set Enrichment Analysis v0.3')
         self.setGeometry(100, 100, 1200, 800)
         
         # 创建中央部件和主布局
@@ -88,6 +88,15 @@ class EnrichmentApp(QMainWindow):
         split_layout.addWidget(self.separator_label)
         split_layout.addWidget(self.separator_input)
         anno_file_layout.addLayout(split_layout)
+        
+        # 无效值设置
+        invalid_values_layout = QHBoxLayout()
+        self.invalid_values_label = QLabel('排除值 (用逗号分隔):', self)
+        self.invalid_values_input = QLineEdit(self)
+        self.invalid_values_input.setText('None,-,not_found,nan')
+        invalid_values_layout.addWidget(self.invalid_values_label)
+        invalid_values_layout.addWidget(self.invalid_values_input)
+        anno_file_layout.addLayout(invalid_values_layout)
         
         # 创建基因集按钮
         self.create_gmt_btn = QPushButton('创建基因集', self)
@@ -323,8 +332,9 @@ class EnrichmentApp(QMainWindow):
             anno_col = self.anno_col_combo.currentText()
             use_split = self.split_check.isChecked()
             separator = self.separator_input.text()
-            
-            if self.enrichment.create_gene_sets(gene_col, anno_col, use_split, separator):
+            invalid_values = set(x.strip() for x in self.invalid_values_input.text().split(','))
+
+            if self.enrichment.create_gene_sets(gene_col, anno_col, use_split, separator, invalid_values):
                 QMessageBox.information(self, '成功', '基因集创建成功')
                 self.statusBar().showMessage('基因集创建成功')
                 # 显示基因集统计信息
