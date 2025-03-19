@@ -487,12 +487,8 @@ class EnrichmentApp(QMainWindow):
                                 gsea_results = self.enrichment.do_gsea(rank_dict)
                                 group_results = gsea_results.res2d
                                 group_results['Name'] = sub_group_name
-                                if self.save_pickle_check.isChecked():
-                                    gsea_dir = os.path.join(output_dir, f'{output_prefix}_GSEA_Objects')
-                                    if not os.path.exists(gsea_dir):
-                                        os.makedirs(gsea_dir)
-                                                        
-                                    results_file_path = os.path.join(output_dir,'GSEA_Pickle', f'{output_prefix}_{sub_group_name}_{method}.pkl')
+                                if self.save_pickle_check.isChecked():                                                       
+                                    results_file_path = os.path.join(output_dir,f'{output_prefix}_GSEA_Objects', f'{output_prefix}_{sub_group_name}_{method}.pkl')
                                     pickle.dump(gsea_results, open(results_file_path, 'wb'))
                                     print(f'GSEA object saved to {results_file_path}')
                             results.append(group_results)
@@ -502,6 +498,10 @@ class EnrichmentApp(QMainWindow):
                             for group in current_df[current_col].unique():
                                 filtered_df = current_df[current_df[current_col] == group]
                                 process_group(filtered_df, remaining_cols[1:], group_names + [str(group)])
+                    
+                    if self.save_pickle_check.isChecked():
+                        gsea_dir = os.path.join(output_dir, f'{output_prefix}_GSEA_Objects')
+                        os.makedirs(gsea_dir, exist_ok=True)
                     
                     process_group(df, group_col_list, [])
                     results_df = pd.concat(results, ignore_index=True)

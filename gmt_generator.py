@@ -149,7 +149,7 @@ class GMTGenerator(QMainWindow):
                 self.anno_col_combo.addItems(self.df_anno.columns)
                 
                 # 显示基本统计信息
-                self.log(f'成功加载注释文件:')
+                self.log('成功加载注释文件:')
                 self.log(f'  - 总行数: {len(self.df_anno)}')
                 self.log(f'  - 总列数: {len(self.df_anno.columns)}')
                 self.log(f'  - 列名: {", ".join(self.df_anno.columns)}')

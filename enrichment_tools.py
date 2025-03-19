@@ -1,6 +1,6 @@
 import pandas as pd
 import gseapy as gp
-from typing import Callable
+from typing import Callable, Dict, Set
 
 class EnrichmentAnalyzer:
     def __init__(self):
@@ -23,8 +23,6 @@ class EnrichmentAnalyzer:
         self.df_anno = pd.read_csv(file_path, sep='\t')
         self.log(f'成功加载注释文件，包含{len(self.df_anno)}行数据')
         return list(self.df_anno.columns)
-
-    from typing import Dict, Set
     
     def create_gene_sets(self, gene_col: str, anno_col: str, use_split: bool = True, separator: str = "|", invalid_values: set = None) -> bool:
         """创建基因集
@@ -144,7 +142,7 @@ class EnrichmentAnalyzer:
             return None
             
         try:
-            self.log(f'开始超几何分布富集分析...')
+            self.log('开始超几何分布富集分析...')
             self.log(f'输入基因数: {len(gene_list)}')
             self.log(f'背景基因集数: {len(self.gene_sets)}')
             
@@ -168,7 +166,7 @@ class EnrichmentAnalyzer:
             return None
             
         try:
-            self.log(f'开始GSEA分析...')
+            self.log('开始GSEA分析...')
             self.log(f'输入基因数: {len(rank_dict)}')
             self.log(f'背景基因集数: {len(self.gene_sets)}')
             
