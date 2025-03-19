@@ -344,6 +344,8 @@ class EnrichmentApp(QMainWindow):
             self.progress_dialog = None
         QApplication.processEvents()
 
+
+
     def run_analysis(self):
         """运行富集分析"""
         if not self.enrichment.gene_sets:
@@ -375,65 +377,14 @@ class EnrichmentApp(QMainWindow):
                 group_col1 = self.group_col_combo_1.currentText() if self.group_col_combo_1.currentText() else None
                 group_col2 = self.group_col_combo_2.currentText() if self.group_col_combo_2.currentText() else None
                 group_col3 = self.group_col_combo_3.currentText() if self.group_col_combo_3.currentText() else None
-                df = pd.read_csv(self.gene_file_path, sep='\t')
-                if group_col1 or group_col2 or group_col3:
-                    results = []
-                    if group_col1 == group_col2 or group_col1 == group_col3 or group_col2 == group_col3:
-                        QMessageBox.warning(self, '警告', '分组列不能相同')
-                        self.hide_progress()
-                        return
-                    
-                    group1_list = df[group_col1].unique() if group_col1 else [None]
-                    group2_list = df[group_col2].unique() if group_col2 else [None]
-                    group3_list = df[group_col3].unique() if group_col3 else [None]
-                    
-                    print(f'group1_list: {group1_list}')
-                    print(f'group2_list: {group2_list}')
-                    print(f'group3_list: {group3_list}')
-                    
-                    for group1 in group1_list:
-                        group_df = df[df[group_col1] == group1] if group_col1 else df
-                        for group2 in group2_list:
-                            group2_df = group_df[group_df[group_col2] == group2] if group_col2 else group_df
-                            for group3 in group3_list:
-                                group3_df = group2_df[group2_df[group_col3] == group3] if group_col3 else group2_df
-                                if len(group3_df) == 0:
-                                    print(f'empty for {group1}, {group2} and {group3}')
-                                    continue
-                        
-                                sub_group_name = f'{group1}~{group2}~{group3}' if group1 and group2 and group3 else group1 or group2 or group3
-                                genes = group3_df[gene_col].tolist()
-                                # check if gene list is unique
-                                if len(genes) != len(set(genes)):
-                                    # warning and ask if user wants to continue
-                                    reply = QMessageBox.question(self, '警告', f'基因列表中存在重复基因，是否继续？{sub_group_name}',
-                                                                    QMessageBox.Yes, QMessageBox.No)
-                                    if reply == QMessageBox.No:
-                                        self.hide_progress()
-                                        return
-                                    
-                                rank_dict = group3_df.set_index(gene_col)[rank_col].to_dict() if rank_col else None
-                                self.log_progress(f'正在分析组: {sub_group_name}')
-                                if rank_dict is None or self.hypergeometric_radio.isChecked():
-                                    # 使用超几何分布
-                                    self.log_progress('使用超几何分布进行富集分析...')
-                                    group_results = self.enrichment.do_hypergeometric(genes)
-                                    group_results['Gene_set'] = sub_group_name
-                                else:
-                                    # 使用GSEA
-                                    self.log_progress('使用GSEA进行富集分析...')
-                                    gsea_results = self.enrichment.do_gsea(rank_dict)
-                                    group_results = gsea_results.res2d
-                                    group_results['Name'] = sub_group_name
-                                    # 根据选项保存结果对象到文件
-                                    if self.save_pickle_check.isChecked():
-                                        results_file_path = os.path.join(output_dir, f'{output_prefix}_{sub_group_name}_{method}.pkl')
-                                        pickle.dump(gsea_results, open(results_file_path, 'wb'))
-                                        print(f'GSEA object saved to {results_file_path}')
-                                
-                                results.append(group_results)
-                    results_df = pd.concat(results, ignore_index=True)
-                else:
+                
+                group_col_list = [group_col1, group_col2, group_col3]
+                group_col_list = [col for col in group_col_list if col not in ['', None]]
+                group_col_list = [x for i, x in enumerate(group_col_list) if i == group_col_list.index(x)]
+                print(f'group_col_list: {group_col_list}')
+                df = pd.read_csv(self.gene_file_path, sep='\t') 
+                
+                if len(group_col_list) == 0: # 如果没有分组列, 则直接进行富集分析
                     genes = df[gene_col].tolist()
                     if len(genes) != len(set(genes)):
                         # warning and ask if user wants to continue
@@ -459,6 +410,48 @@ class EnrichmentApp(QMainWindow):
                             results_file_path = os.path.join(output_dir, f'{output_prefix}_{method}.pkl')
                             pickle.dump(gsea_results, open(results_file_path, 'wb'))
                             print(f'GSEA object saved to {results_file_path}')
+                
+                else: # 如果有分组列, 则按照分组列进行富集分析
+                    results = []
+                    def process_group(current_df, remaining_cols, group_names):
+                        # 当没有剩余分组列时，对当前子 DataFrame 进行富集分析
+                        if not remaining_cols:
+                            sub_group_name = "~".join(group_names)
+                            genes = current_df[gene_col].tolist()
+                            if len(genes) != len(set(genes)):
+                                reply = QMessageBox.question(self, '警告', 
+                                    f'基因列表中存在重复基因，是否继续？ {sub_group_name}', 
+                                    QMessageBox.Yes, QMessageBox.No)
+                                if reply == QMessageBox.No:
+                                    self.hide_progress()
+                                    return
+                            rank_dict = current_df.set_index(gene_col)[rank_col].to_dict() if rank_col else None
+                            self.log_progress(f'正在分析组: {sub_group_name}')
+                            if rank_dict is None or self.hypergeometric_radio.isChecked():
+                                self.log_progress('使用超几何分布进行富集分析...')
+                                group_results = self.enrichment.do_hypergeometric(genes)
+                                group_results['Gene_set'] = sub_group_name
+                            else:
+                                self.log_progress('使用GSEA进行富集分析...')
+                                gsea_results = self.enrichment.do_gsea(rank_dict)
+                                group_results = gsea_results.res2d
+                                group_results['Name'] = sub_group_name
+                                if self.save_pickle_check.isChecked():
+                                    results_file_path = os.path.join(output_dir, f'{output_prefix}_{sub_group_name}_{method}.pkl')
+                                    pickle.dump(gsea_results, open(results_file_path, 'wb'))
+                                    print(f'GSEA object saved to {results_file_path}')
+                            results.append(group_results)
+                        else:
+                            # 当前处理的分组列
+                            current_col = remaining_cols[0]
+                            for group in current_df[current_col].unique():
+                                filtered_df = current_df[current_df[current_col] == group]
+                                process_group(filtered_df, remaining_cols[1:], group_names + [str(group)])
+                    
+                    process_group(df, group_col_list, [])
+                    results_df = pd.concat(results, ignore_index=True)
+                   
+
             else:
                 # 从文本输入读取
                 text = self.gene_text.toPlainText()
@@ -468,10 +461,16 @@ class EnrichmentApp(QMainWindow):
                     return
                 self.log_progress('正在解析输入的基因列表')
                 genes, rank_dict = self.enrichment.parse_input_genes(text)
-                if rank_dict is None or self.hypergeometric_radio.isChecked():
-                    # 使用超几何分布
-                    self.log_progress('使用超几何分布进行富集分析...')
-                    results_df = self.enrichment.do_hypergeometric(genes)
+                if rank_dict is None:
+                    if self.hypergeometric_radio.isChecked():
+                        # 使用超几何分布
+                        self.log_progress('使用超几何分布进行富集分析...')
+                        results_df = self.enrichment.do_hypergeometric(genes)
+                    elif self.gsea_radio.isChecked():
+                        # Warning, can't use GSEA without rank values
+                        QMessageBox.warning(self, '警告', 'GSEA需要排序值列')
+                        self.hide_progress()
+                        return
                 else:
                     # 使用GSEA
                     self.log_progress('使用GSEA进行富集分析...')
@@ -488,7 +487,6 @@ class EnrichmentApp(QMainWindow):
                 # 显示结果
                 self.results_text.clear()
                 self.results_text.append(f'使用{method}方法进行富集分析:')
-                self.results_text.append(f'输入基因数: {len(genes)}')
                 self.results_text.append('\n显著富集的前10个通路:')
                 self.results_text.append(str(results_df.head(10)))
                 
@@ -499,14 +497,8 @@ class EnrichmentApp(QMainWindow):
                 
                 self.statusBar().showMessage('分析完成')
 
-                # 保存结果以供可视化使用
-                self.results = results_df
+
                 
-                # 如果是GSEA分析，保存rank_dict用于GSEA图
-                if rank_dict is not None and self.gsea_radio.isChecked():
-                    self.rank_dict = rank_dict
-                else:
-                    self.rank_dict = None
                 
 
             else:
