@@ -28,7 +28,7 @@ class EnrichmentApp(QMainWindow):
         self.initUI()
         
     def initUI(self):
-        self.setWindowTitle('Gene Set Enrichment Analysis v0.1')
+        self.setWindowTitle('Gene Set Enrichment Analysis v0.2')
         self.setGeometry(100, 100, 1200, 800)
         
         # 创建中央部件和主布局
@@ -140,21 +140,19 @@ class EnrichmentApp(QMainWindow):
         file_cols_layout.addWidget(self.group_col_label_3)  # 添加分组列标签到布局
         file_cols_layout.addWidget(self.group_col_combo_3)  # 添加分组列选择控件到布局
         file_input_layout.addLayout(file_cols_layout)
-        # set minimum horizontal policy for labels
-        self.gene_col_file_label.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
-        self.rank_col_label.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
-        self.group_col_label_1.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
-        self.group_col_label_2.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
-        self.group_col_label_3.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum))
         
-        # set preferred horizontal policy for comboboxes
-        self.gene_col_file_combo.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum))
-        self.rank_col_combo.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum))
-        self.group_col_combo_1.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum))
-        self.group_col_combo_2.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum))
-        self.group_col_combo_3.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum))
+        # 设置尺寸策略
+        self.gene_col_file_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        self.rank_col_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        self.group_col_label_1.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        self.group_col_label_2.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        self.group_col_label_3.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         
-        
+        self.gene_col_file_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.rank_col_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.group_col_combo_1.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.group_col_combo_2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.group_col_combo_3.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         
         # 直接输入部分
         self.text_input_widget = QWidget()
