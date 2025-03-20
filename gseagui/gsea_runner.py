@@ -28,7 +28,7 @@ class EnrichmentApp(QMainWindow):
         self.initUI()
         
     def initUI(self):
-        self.setWindowTitle('Gene Set Enrichment Analysis v0.3')
+        self.setWindowTitle('Gene Set Enrichment Analyzer')
         self.setGeometry(100, 100, 1200, 800)
         
         # 创建中央部件和主布局
