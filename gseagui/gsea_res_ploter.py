@@ -128,13 +128,13 @@ class GSEAVisualizationGUI(QMainWindow):
         # 在基本参数组中添加轴标签字体大小设置
         basic_param_layout.addWidget(QLabel("X轴标签字体大小:"), 7, 0)
         self.x_axis_fontsize_spin = QSpinBox()
-        self.x_axis_fontsize_spin.setRange(8, 24)
+        self.x_axis_fontsize_spin.setRange(5, 24)
         self.x_axis_fontsize_spin.setValue(14)
         basic_param_layout.addWidget(self.x_axis_fontsize_spin, 7, 1)
         
         basic_param_layout.addWidget(QLabel("Y轴标签字体大小:"), 8, 0)
         self.y_axis_fontsize_spin = QSpinBox()
-        self.y_axis_fontsize_spin.setRange(8, 24)
+        self.y_axis_fontsize_spin.setRange(5, 24)
         self.y_axis_fontsize_spin.setValue(14)
         basic_param_layout.addWidget(self.y_axis_fontsize_spin, 8, 1)
         
@@ -178,7 +178,7 @@ class GSEAVisualizationGUI(QMainWindow):
         # 修改Dot Plot参数组中的legend设置 - 只保留字体大小设置
         dot_param_layout.addWidget(QLabel("图例字体大小:"), 5, 0)
         self.legend_fontsize_spin = QSpinBox()
-        self.legend_fontsize_spin.setRange(6, 18)
+        self.legend_fontsize_spin.setRange(5, 18)
         self.legend_fontsize_spin.setValue(10)
         dot_param_layout.addWidget(self.legend_fontsize_spin, 5, 1)
         
@@ -209,7 +209,7 @@ class GSEAVisualizationGUI(QMainWindow):
         bar_param_layout.addWidget(QLabel("图例字体大小:"))
         self.bar_legend_fontsize_spin = QSpinBox()
         self.bar_legend_fontsize_spin.setRange(6, 18)
-        self.bar_legend_fontsize_spin.setValue(6)
+        self.bar_legend_fontsize_spin.setValue(8)
         bar_param_layout.addWidget(self.bar_legend_fontsize_spin)
         
         # 在 Bar Plot 参数组中添加 legend 位置设置
@@ -264,7 +264,7 @@ class GSEAVisualizationGUI(QMainWindow):
         
         gsea_param_layout.addWidget(QLabel("标签字体大小:"), 1, 0)
         self.gsea_fontsize_spin = QSpinBox()
-        self.gsea_fontsize_spin.setRange(8, 20)
+        self.gsea_fontsize_spin.setRange(5, 20)
         self.gsea_fontsize_spin.setValue(12)
         gsea_param_layout.addWidget(self.gsea_fontsize_spin, 1, 1)
         
@@ -277,7 +277,7 @@ class GSEAVisualizationGUI(QMainWindow):
         
         gsea_param_layout.addWidget(QLabel("图例字体大小:"), 3, 0)
         self.gsea_legend_fontsize_spin = QSpinBox()
-        self.gsea_legend_fontsize_spin.setRange(6, 18)
+        self.gsea_legend_fontsize_spin.setRange(5, 18)
         self.gsea_legend_fontsize_spin.setValue(6)  # 默认字体大小为6
         gsea_param_layout.addWidget(self.gsea_legend_fontsize_spin, 3, 1)
         
