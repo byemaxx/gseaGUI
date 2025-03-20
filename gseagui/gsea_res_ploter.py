@@ -1,10 +1,8 @@
 import sys
-import os
 import pandas as pd
-import numpy as np
 import pickle
 import matplotlib
-matplotlib.use('Qt5Agg')  # 使用Qt5Agg后端
+matplotlib.use('Qt5Agg')
 from gseapy import barplot, dotplot
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas

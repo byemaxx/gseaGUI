@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                            QRadioButton, QButtonGroup, QTabWidget)
 from PyQt5.QtCore import  Qt
 
-from enrichment_tools import EnrichmentAnalyzer
+from .enrichment_tools import EnrichmentAnalyzer
 import sys
 import os
 import pandas as pd

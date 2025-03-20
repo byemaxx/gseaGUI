@@ -1,6 +1,31 @@
-deseq2_result_long.tsv
-enrichment_results/
-protein_anno.tsv
-dist/
+local_test/
+
+# Python字节码
 __pycache__/
+*.py[cod]
+*$py.class
+
+# 分发/打包
+dist/
+build/
+*.egg-info/
+*.egg
+
+# 环境
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE文件
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 操作系统相关
+.DS_Store
+Thumbs.db
+
 gmt_files/

@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gseagui"
+version = "0.1.0"
+authors = [
+    {name = "Qing", email = "your.byeomax@outlook.com"}
+]
+description = "GUI tools for gene set enrichment analysis"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "BSD-3-Clause"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "License :: OSI Approved :: BSD License",
+]
+keywords = ["bioinformatics", "GSEA", "GUI"]
+dependencies = [
+    "pandas",
+    "numpy",
+    "matplotlib",
+    "gseapy",
+    "PyQt5",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/yourusername/gseagui"
+"Bug Tracker" = "https://github.com/yourusername/gseagui/issues"
+
+[project.scripts]
+gseaplotter = "gseagui.gsea_res_ploter:main"
+gmtgenerator = "gseagui.gmt_generator:main"
+gseanrichment = "gseagui.gsea_runner:main"
+gseagui = "gseagui.main:main"
+
+[tool.setuptools]
+packages = ["gseagui"]
