@@ -95,9 +95,6 @@ sys.exit(app.exec_())
 ## Project Structure
 ## 项目结构
 
-The project uses modern `pyproject.toml` configuration instead of traditional `setup.py`:
-项目使用现代的`pyproject.toml`配置替代传统的`setup.py`：
-
 ```
 gseagui/
 ├── __init__.py        # Package initialization

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gseagui"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
     {name = "Qing", email = "byeomax@outlook.com"}
 ]
@@ -29,8 +29,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/yourusername/gseagui"
-"Bug Tracker" = "https://github.com/yourusername/gseagui/issues"
+"Homepage" = "https://github.com/byemaxx/gseaGUI"
+"Bug Tracker" = "https://github.com/byemaxx/gseaGUI/issues"
 
 [project.scripts]
 gseaplotter = "gseagui.gsea_res_ploter:main"
