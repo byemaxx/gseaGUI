@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "gseagui"
 version = "0.1.0"
 authors = [
-    {name = "Qing", email = "your.byeomax@outlook.com"}
+    {name = "Qing", email = "byeomax@outlook.com"}
 ]
 description = "GUI tools for gene set enrichment analysis"
 readme = "README.md"
