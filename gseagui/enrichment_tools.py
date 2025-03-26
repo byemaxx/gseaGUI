@@ -178,7 +178,8 @@ class EnrichmentAnalyzer:
                 rnk=rnk,
                 gene_sets=self.gene_sets,
                 outdir=None,
-                no_plot=True
+                no_plot=True,
+                min_size=1,
             )
             
             self.log(f'分析完成，发现 {len(pre_res.res2d)} 个富集结果')

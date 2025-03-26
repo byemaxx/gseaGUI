@@ -54,7 +54,7 @@ class MainGUI(QMainWindow):
         main_layout.addLayout(button_layout)
         
         # 版本信息
-        version_label = QLabel("版本 0.1.1")
+        version_label = QLabel("版本 0.1.2")
         version_label.setAlignment(Qt.AlignRight)
         main_layout.addWidget(version_label)
         
