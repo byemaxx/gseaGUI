@@ -4,8 +4,10 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                            QCheckBox, QLineEdit, QGroupBox, QGridLayout,QSizePolicy,
                            QRadioButton, QButtonGroup, QTabWidget)
 from PyQt5.QtCore import  Qt
-
-from .enrichment_tools import EnrichmentAnalyzer
+if __name__ == '__main__':
+    from enrichment_tools import EnrichmentAnalyzer
+else:    
+    from .enrichment_tools import EnrichmentAnalyzer
 import sys
 import os
 import pandas as pd
@@ -481,10 +483,18 @@ class EnrichmentApp(QMainWindow):
                             if rank_dict is None or self.hypergeometric_radio.isChecked():
                                 self.log_progress('使用超几何分布进行富集分析...')
                                 group_results = self.enrichment.do_hypergeometric(genes)
-                                group_results['Gene_set'] = sub_group_name
+                                if len(group_results) > 0:
+                                    group_results['Gene_set'] = sub_group_name
+                                else:
+                                    print(f'No results for {sub_group_name}, skipping')
+                                    return                                   
+                                    
                             else:
                                 self.log_progress('使用GSEA进行富集分析...')
                                 gsea_results = self.enrichment.do_gsea(rank_dict)
+                                if gsea_results is None or len(gsea_results.res2d) == 0:
+                                    print(f'No results for {sub_group_name}, skipping')
+                                    return
                                 group_results = gsea_results.res2d
                                 group_results['Name'] = sub_group_name
                                 if self.save_pickle_check.isChecked():                                                       
