@@ -2,7 +2,8 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                            QHBoxLayout, QPushButton, QFileDialog, QLabel, 
                            QComboBox, QTextEdit, QMessageBox, QProgressDialog,
                            QCheckBox, QLineEdit, QGroupBox, QGridLayout,QSizePolicy,
-                           QRadioButton, QButtonGroup, QTabWidget)
+                           QRadioButton, QButtonGroup, QTabWidget, QSpinBox)
+# import QIntValidator
 from PyQt5.QtCore import  Qt
 if __name__ == '__main__':
     from enrichment_tools import EnrichmentAnalyzer
@@ -216,6 +217,31 @@ class EnrichmentApp(QMainWindow):
         self.hypergeometric_radio.setChecked(True)
         method_layout.addWidget(self.hypergeometric_radio)
         method_layout.addWidget(self.gsea_radio)
+        
+        # 添加GSEA参数设置
+        self.gsea_params_widget = QWidget()
+        gsea_params_layout = QHBoxLayout(self.gsea_params_widget)
+        self.min_size_label = QLabel("最小基因集大小:", self)
+        self.min_size_input = QSpinBox(self)
+        self.min_size_input.setRange(1, 999999)
+        self.min_size_input.setValue(15)
+        self.max_size_label = QLabel("最大基因集大小:", self)
+        self.max_size_input = QSpinBox(self)
+        self.max_size_input.setRange(1, 999999)
+        self.max_size_input.setValue(500)
+        gsea_params_layout.addWidget(self.min_size_label)
+        gsea_params_layout.addWidget(self.min_size_input)
+        gsea_params_layout.addWidget(self.max_size_label)
+        gsea_params_layout.addWidget(self.max_size_input)
+        method_layout.addWidget(self.gsea_params_widget)
+        
+        # 连接单选按钮信号
+        self.hypergeometric_radio.toggled.connect(self.on_method_changed)
+        self.gsea_radio.toggled.connect(self.on_method_changed)
+        
+        # 初始隐藏GSEA参数
+        self.gsea_params_widget.setVisible(False)
+        
         method_group.setLayout(method_layout)
         enrich_layout.addWidget(method_group)
         
@@ -400,6 +426,11 @@ class EnrichmentApp(QMainWindow):
             QMessageBox.warning(self, '警告', '请先创建基因集')
             return
         method = 'Hypergeometric' if self.hypergeometric_radio.isChecked() else 'GSEA'
+        
+        # 获取GSEA参数 - 使用value()而不是text()
+        min_size = self.min_size_input.value()
+        max_size = self.max_size_input.value()
+        
         self.show_progress()
         try:
             # 获取输出设置
@@ -456,7 +487,7 @@ class EnrichmentApp(QMainWindow):
                     else:
                         # 使用GSEA
                         self.log_progress('使用GSEA进行富集分析...')
-                        gsea_results = self.enrichment.do_gsea(rank_dict)
+                        gsea_results = self.enrichment.do_gsea(rank_dict, min_size=min_size, max_size=max_size)
                         results_df = gsea_results.res2d
                         # 根据选项保存结果对象到文件
                         if self.save_pickle_check.isChecked():
@@ -491,7 +522,7 @@ class EnrichmentApp(QMainWindow):
                                     
                             else:
                                 self.log_progress('使用GSEA进行富集分析...')
-                                gsea_results = self.enrichment.do_gsea(rank_dict)
+                                gsea_results = self.enrichment.do_gsea(rank_dict, min_size=min_size, max_size=max_size)
                                 if gsea_results is None or len(gsea_results.res2d) == 0:
                                     print(f'No results for {sub_group_name}, skipping')
                                     return
@@ -539,7 +570,7 @@ class EnrichmentApp(QMainWindow):
                 else:
                     # 使用GSEA
                     self.log_progress('使用GSEA进行富集分析...')
-                    res = self.enrichment.do_gsea(rank_dict)
+                    res = self.enrichment.do_gsea(rank_dict, min_size=min_size, max_size=max_size)
                     results_df = res.res2d
                     # 根据选项保存结果对象到文件
                     if self.save_pickle_check.isChecked():
@@ -573,6 +604,10 @@ class EnrichmentApp(QMainWindow):
             QMessageBox.critical(self, '错误', error_msg)
             self.log_progress(f'错误: {error_msg}')
             print(f"Error details:\n{error_msg}")  # 打印详细错误信息到控制台
+
+    def on_method_changed(self):
+        """当分析方法改变时更新UI"""
+        self.gsea_params_widget.setVisible(self.gsea_radio.isChecked())
 
 def main():
     app = QApplication(sys.argv)

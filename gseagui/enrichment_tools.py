@@ -160,7 +160,7 @@ class EnrichmentAnalyzer:
             self.log(f"富集分析失败: {str(e)}")
             return None
             
-    def do_gsea(self, rank_dict):
+    def do_gsea(self, rank_dict, min_size=15, max_size=500):
         """执行GSEA分析"""
         if not self.gene_sets:
             return None
@@ -169,6 +169,7 @@ class EnrichmentAnalyzer:
             self.log('开始GSEA分析...')
             self.log(f'输入基因数: {len(rank_dict)}')
             self.log(f'背景基因集数: {len(self.gene_sets)}')
+            self.log(f'基因集大小范围: {min_size} - {max_size}')
             
             # 准备GSEA输入格式
             rnk = pd.Series(rank_dict)
@@ -179,7 +180,8 @@ class EnrichmentAnalyzer:
                 gene_sets=self.gene_sets,
                 outdir=None,
                 no_plot=True,
-                min_size=1,
+                min_size=min_size,
+                max_size=max_size
             )
             
             self.log(f'分析完成，发现 {len(pre_res.res2d)} 个富集结果')
