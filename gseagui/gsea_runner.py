@@ -5,10 +5,10 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                            QRadioButton, QButtonGroup, QTabWidget, QSpinBox)
 # import QIntValidator
 from PyQt5.QtCore import  Qt
-if __name__ == '__main__':
+try:
+    from gseagui.enrichment_tools import EnrichmentAnalyzer
+except ImportError:
     from enrichment_tools import EnrichmentAnalyzer
-else:    
-    from .enrichment_tools import EnrichmentAnalyzer
 import sys
 import os
 import pandas as pd

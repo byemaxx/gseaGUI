@@ -2,9 +2,14 @@ import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QTabWidget
 from PyQt5.QtCore import Qt
 
-from .gsea_res_ploter import GSEAVisualizationGUI
-from .gmt_generator import GMTGenerator
-from .gsea_runner import EnrichmentApp
+try:
+    from gseagui.gsea_res_ploter import GSEAVisualizationGUI
+    from gseagui.gmt_generator import GMTGenerator
+    from gseagui.gsea_runner import EnrichmentApp
+except ImportError:
+    from gsea_res_ploter import GSEAVisualizationGUI
+    from gmt_generator import GMTGenerator
+    from gsea_runner import EnrichmentApp
 
 class MainGUI(QMainWindow):
     def __init__(self):
@@ -18,7 +23,7 @@ class MainGUI(QMainWindow):
         
         # 主布局
         main_layout = QVBoxLayout(central_widget)
-        
+                
         # 标题标签
         title_label = QLabel("GSEA GUI工具集")
         title_label.setAlignment(Qt.AlignCenter)
