@@ -1,4 +1,5 @@
 import sys
+import webbrowser
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QComboBox, QHBoxLayout
 from PyQt5.QtCore import Qt
 
@@ -19,7 +20,12 @@ class MainGUI(QMainWindow):
         self.current_lang = "en"  # Default to English
         
         self.setWindowTitle(TRANSLATIONS["main"][self.current_lang]["window_title"])
-        self.setGeometry(100, 100, 800, 600)
+        
+        # Set window size
+        self.resize(400, 400)
+        
+        # Center the window on screen
+        self.center()
         
         # Create central widget
         central_widget = QWidget()
@@ -43,16 +49,18 @@ class MainGUI(QMainWindow):
         # Title label
         self.title_label = QLabel(TRANSLATIONS["main"][self.current_lang]["title"])
         self.title_label.setAlignment(Qt.AlignCenter)
-        self.title_label.setStyleSheet("font-size: 20px; font-weight: bold;")
+        self.title_label.setStyleSheet("font-size: 20px; font-weight: bold; margin-bottom: 5px;")
         main_layout.addWidget(self.title_label)
         
         # Description label
         self.description_label = QLabel(TRANSLATIONS["main"][self.current_lang]["description"])
         self.description_label.setAlignment(Qt.AlignCenter)
+        self.description_label.setStyleSheet("font-size: 12px; margin-bottom: 10px;")
         main_layout.addWidget(self.description_label)
         
         # Button group
         button_layout = QVBoxLayout()
+        button_layout.setSpacing(10)
         
         # Enrichment App Button
         self.enrichment_app_btn = QPushButton(TRANSLATIONS["main"][self.current_lang]["enrichment_btn"])
@@ -74,15 +82,39 @@ class MainGUI(QMainWindow):
         
         main_layout.addLayout(button_layout)
         
+        # Add stretch to push bottom info to the bottom
+        main_layout.addStretch()
+        
+        # Bottom info layout (Version and GitHub link)
+        bottom_layout = QHBoxLayout()
+        
+        # GitHub Homepage Link
+        self.github_label = QLabel(f'<a href="https://github.com/byemaxx/gseaGUI">{TRANSLATIONS["main"][self.current_lang]["github_btn"]}</a>')
+        self.github_label.setOpenExternalLinks(True)
+        self.github_label.setAlignment(Qt.AlignLeft)
+        bottom_layout.addWidget(self.github_label)
+        
+        bottom_layout.addStretch()
+        
         # Version label
         self.version_label = QLabel(TRANSLATIONS["main"][self.current_lang]["version"])
         self.version_label.setAlignment(Qt.AlignRight)
-        main_layout.addWidget(self.version_label)
+        bottom_layout.addWidget(self.version_label)
+        
+        main_layout.addLayout(bottom_layout)
         
         # Save window references
         self.enrichment_app_window = None
         self.gsea_vis_window = None
         self.gmt_gen_window = None
+    
+    def center(self):
+        """Center the window on screen"""
+        from PyQt5.QtWidgets import QDesktopWidget
+        qr = self.frameGeometry()
+        cp = QDesktopWidget().availableGeometry().center()
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
 
     def change_language(self, index):
         """Change the application language"""
@@ -101,6 +133,7 @@ class MainGUI(QMainWindow):
         self.enrichment_app_btn.setText(texts["enrichment_btn"])
         self.gsea_vis_btn.setText(texts["vis_btn"])
         self.gmt_gen_btn.setText(texts["gmt_btn"])
+        self.github_label.setText(f'<a href="https://github.com/byemaxx/gseaGUI">{texts["github_btn"]}</a>')
         self.version_label.setText(texts["version"])
     
     def open_enrichment_app(self):

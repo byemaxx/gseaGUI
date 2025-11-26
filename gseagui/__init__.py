@@ -2,7 +2,7 @@
 gseagui - GUI工具集用于基因集富集分析和可视化
 """
 
-__version__ = '0.1.0'
+__version__ = '0.1.5'
 __author__ = 'Qing'
 
 from .gsea_res_ploter import GSEAVisualizationGUI

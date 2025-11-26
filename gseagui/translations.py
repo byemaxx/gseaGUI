@@ -7,7 +7,8 @@ TRANSLATIONS = {
             "enrichment_btn": "GSEA Analysis",
             "vis_btn": "GSEA Visualization",
             "gmt_btn": "GMT Generator",
-            "version": "Version 0.1.4",
+            "github_btn": "Project Homepage",
+            "version": "Version 0.1.5",
             "window_title": "GSEA GUI Toolkit"
         },
         "zh": {
@@ -16,7 +17,8 @@ TRANSLATIONS = {
             "enrichment_btn": "基因集富集分析",
             "vis_btn": "GSEA结果可视化",
             "gmt_btn": "GMT文件生成器",
-            "version": "版本 0.1.4",
+            "github_btn": "项目主页",
+            "version": "版本 0.1.5",
             "window_title": "GSEA GUI工具集"
         }
     },
