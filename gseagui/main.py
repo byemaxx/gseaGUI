@@ -1,86 +1,121 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QTabWidget
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QComboBox, QHBoxLayout
 from PyQt5.QtCore import Qt
 
 try:
     from gseagui.gsea_res_ploter import GSEAVisualizationGUI
     from gseagui.gmt_generator import GMTGenerator
     from gseagui.gsea_runner import EnrichmentApp
+    from gseagui.translations import TRANSLATIONS
 except ImportError:
     from gsea_res_ploter import GSEAVisualizationGUI
     from gmt_generator import GMTGenerator
     from gsea_runner import EnrichmentApp
+    from translations import TRANSLATIONS
 
 class MainGUI(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("GSEA GUI工具集")
+        self.current_lang = "en"  # Default to English
+        
+        self.setWindowTitle(TRANSLATIONS["main"][self.current_lang]["window_title"])
         self.setGeometry(100, 100, 800, 600)
         
-        # 创建中央窗口部件
+        # Create central widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
-        # 主布局
+        # Main layout
         main_layout = QVBoxLayout(central_widget)
+        
+        # Language selection layout (Top Right)
+        lang_layout = QHBoxLayout()
+        lang_layout.addStretch()
+        
+        self.lang_combo = QComboBox()
+        self.lang_combo.addItem("English", "en")
+        self.lang_combo.addItem("中文", "zh")
+        self.lang_combo.currentIndexChanged.connect(self.change_language)
+        lang_layout.addWidget(self.lang_combo)
+        
+        main_layout.addLayout(lang_layout)
                 
-        # 标题标签
-        title_label = QLabel("GSEA GUI工具集")
-        title_label.setAlignment(Qt.AlignCenter)
-        title_label.setStyleSheet("font-size: 20px; font-weight: bold;")
-        main_layout.addWidget(title_label)
+        # Title label
+        self.title_label = QLabel(TRANSLATIONS["main"][self.current_lang]["title"])
+        self.title_label.setAlignment(Qt.AlignCenter)
+        self.title_label.setStyleSheet("font-size: 20px; font-weight: bold;")
+        main_layout.addWidget(self.title_label)
         
-        # 说明标签
-        description_label = QLabel("请选择要使用的工具：")
-        description_label.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(description_label)
+        # Description label
+        self.description_label = QLabel(TRANSLATIONS["main"][self.current_lang]["description"])
+        self.description_label.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(self.description_label)
         
-        # 创建按钮组
+        # Button group
         button_layout = QVBoxLayout()
         
-        # 富集分析应用按钮
-        self.enrichment_app_btn = QPushButton("基因集富集分析")
+        # Enrichment App Button
+        self.enrichment_app_btn = QPushButton(TRANSLATIONS["main"][self.current_lang]["enrichment_btn"])
         self.enrichment_app_btn.setMinimumHeight(50)
         self.enrichment_app_btn.clicked.connect(self.open_enrichment_app)
         button_layout.addWidget(self.enrichment_app_btn)
         
-        # GSEA可视化按钮
-        self.gsea_vis_btn = QPushButton("GSEA结果可视化")
+        # GSEA Visualization Button
+        self.gsea_vis_btn = QPushButton(TRANSLATIONS["main"][self.current_lang]["vis_btn"])
         self.gsea_vis_btn.setMinimumHeight(50)
         self.gsea_vis_btn.clicked.connect(self.open_gsea_vis)
         button_layout.addWidget(self.gsea_vis_btn)
         
-        # GMT生成器按钮
-        self.gmt_gen_btn = QPushButton("GMT文件生成器")
+        # GMT Generator Button
+        self.gmt_gen_btn = QPushButton(TRANSLATIONS["main"][self.current_lang]["gmt_btn"])
         self.gmt_gen_btn.setMinimumHeight(50)
         self.gmt_gen_btn.clicked.connect(self.open_gmt_gen)
         button_layout.addWidget(self.gmt_gen_btn)
         
         main_layout.addLayout(button_layout)
         
-        # 版本信息
-        version_label = QLabel("版本 0.1.4")
-        version_label.setAlignment(Qt.AlignRight)
-        main_layout.addWidget(version_label)
+        # Version label
+        self.version_label = QLabel(TRANSLATIONS["main"][self.current_lang]["version"])
+        self.version_label.setAlignment(Qt.AlignRight)
+        main_layout.addWidget(self.version_label)
         
-        # 保存窗口引用
+        # Save window references
         self.enrichment_app_window = None
         self.gsea_vis_window = None
         self.gmt_gen_window = None
+
+    def change_language(self, index):
+        """Change the application language"""
+        lang_code = self.lang_combo.itemData(index)
+        if lang_code != self.current_lang:
+            self.current_lang = lang_code
+            self.update_ui_text()
+    
+    def update_ui_text(self):
+        """Update UI text based on current language"""
+        texts = TRANSLATIONS["main"][self.current_lang]
+        
+        self.setWindowTitle(texts["window_title"])
+        self.title_label.setText(texts["title"])
+        self.description_label.setText(texts["description"])
+        self.enrichment_app_btn.setText(texts["enrichment_btn"])
+        self.gsea_vis_btn.setText(texts["vis_btn"])
+        self.gmt_gen_btn.setText(texts["gmt_btn"])
+        self.version_label.setText(texts["version"])
     
     def open_enrichment_app(self):
-        """打开基因集富集分析窗口"""
-        self.enrichment_app_window = EnrichmentApp()
+        """Open Enrichment App Window"""
+        self.enrichment_app_window = EnrichmentApp(lang=self.current_lang)
         self.enrichment_app_window.show()
     
     def open_gsea_vis(self):
-        """打开GSEA可视化窗口"""
-        self.gsea_vis_window = GSEAVisualizationGUI()
+        """Open GSEA Visualization Window"""
+        self.gsea_vis_window = GSEAVisualizationGUI(lang=self.current_lang)
         self.gsea_vis_window.show()
     
     def open_gmt_gen(self):
-        """打开GMT生成器窗口"""
-        self.gmt_gen_window = GMTGenerator()
+        """Open GMT Generator Window"""
+        self.gmt_gen_window = GMTGenerator(lang=self.current_lang)
         self.gmt_gen_window.show()
 
 def main():

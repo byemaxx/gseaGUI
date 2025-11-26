@@ -13,11 +13,18 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QH
                              QGridLayout, QLineEdit, QColorDialog, QMessageBox, QMenu)
 from PyQt5.QtCore import Qt
 
+try:
+    from gseagui.translations import TRANSLATIONS
+except ImportError:
+    from translations import TRANSLATIONS
 
 class GSEAVisualizationGUI(QMainWindow):
-    def __init__(self):
+    def __init__(self, lang='en'):
         super().__init__()
-        self.setWindowTitle("GSEA Result Ploter")
+        self.lang = lang
+        self.trans = TRANSLATIONS["ploter"][self.lang]
+        
+        self.setWindowTitle(self.trans["window_title"])
         self.setGeometry(100, 100, 1200, 800)
         
         # 数据存储
@@ -44,14 +51,14 @@ class GSEAVisualizationGUI(QMainWindow):
         control_layout = QVBoxLayout(control_panel)
         
         # 文件加载部分
-        file_group = QGroupBox("文件加载")
+        file_group = QGroupBox(self.trans["file_load_group"])
         file_layout = QVBoxLayout(file_group)
         
-        self.load_file_btn = QPushButton("加载文件 (TSV/PKL)")
+        self.load_file_btn = QPushButton(self.trans["load_file_btn"])
         self.load_file_btn.clicked.connect(self.load_file)
         file_layout.addWidget(self.load_file_btn)
         
-        self.file_path_label = QLabel("未加载文件")
+        self.file_path_label = QLabel(self.trans["no_file"])
         file_layout.addWidget(self.file_path_label)
         
         control_layout.addWidget(file_group)
@@ -64,7 +71,7 @@ class GSEAVisualizationGUI(QMainWindow):
         tsv_layout = QVBoxLayout(self.tsv_tab)
         
         # 绘图类型
-        plot_type_group = QGroupBox("绘图类型")
+        plot_type_group = QGroupBox(self.trans["plot_type_group"])
         plot_type_layout = QVBoxLayout(plot_type_group)
         
         self.plot_type_combo = QComboBox()
@@ -75,25 +82,25 @@ class GSEAVisualizationGUI(QMainWindow):
         tsv_layout.addWidget(plot_type_group)
         
         # 基本参数
-        basic_param_group = QGroupBox("基本参数")
+        basic_param_group = QGroupBox(self.trans["basic_param_group"])
         basic_param_layout = QGridLayout(basic_param_group)
         
-        basic_param_layout.addWidget(QLabel("Column:"), 0, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["column"]), 0, 0)
         self.column_combo = QComboBox()
         self.column_combo.currentIndexChanged.connect(self.update_preview)
         basic_param_layout.addWidget(self.column_combo, 0, 1)
         
-        basic_param_layout.addWidget(QLabel("X/Group:"), 1, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["x_group"]), 1, 0)
         self.x_combo = QComboBox()
         self.x_combo.currentIndexChanged.connect(self.update_preview)
         basic_param_layout.addWidget(self.x_combo, 1, 1)
         
-        basic_param_layout.addWidget(QLabel("Hue:"), 2, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["hue"]), 2, 0)
         self.hue_combo = QComboBox()
         self.hue_combo.currentIndexChanged.connect(self.update_preview)
         basic_param_layout.addWidget(self.hue_combo, 2, 1)
         
-        basic_param_layout.addWidget(QLabel("阈值:"), 3, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["threshold"]), 3, 0)
         self.thresh_spin = QDoubleSpinBox()
         self.thresh_spin.setRange(0, 1)
         self.thresh_spin.setSingleStep(0.01)
@@ -101,14 +108,14 @@ class GSEAVisualizationGUI(QMainWindow):
         self.thresh_spin.valueChanged.connect(self.update_preview)
         basic_param_layout.addWidget(self.thresh_spin, 3, 1)
         
-        basic_param_layout.addWidget(QLabel("Top Term:"), 4, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["top_term"]), 4, 0)
         self.top_term_spin = QSpinBox()
         self.top_term_spin.setRange(1, 100)
         self.top_term_spin.setValue(5)
         self.top_term_spin.valueChanged.connect(self.update_preview)
         basic_param_layout.addWidget(self.top_term_spin, 4, 1)
         
-        basic_param_layout.addWidget(QLabel("图像尺寸:"), 5, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["img_size"]), 5, 0)
         size_layout = QHBoxLayout()
         self.width_spin = QSpinBox()
         self.width_spin.setRange(1, 20)
@@ -121,18 +128,18 @@ class GSEAVisualizationGUI(QMainWindow):
         size_layout.addWidget(self.height_spin)
         basic_param_layout.addLayout(size_layout, 5, 1)
         
-        basic_param_layout.addWidget(QLabel("标题:"), 6, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["title"]), 6, 0)
         self.title_edit = QLineEdit("")
         basic_param_layout.addWidget(self.title_edit, 6, 1)
         
         # 在基本参数组中添加轴标签字体大小设置
-        basic_param_layout.addWidget(QLabel("X轴标签字体大小:"), 7, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["x_axis_fontsize"]), 7, 0)
         self.x_axis_fontsize_spin = QSpinBox()
         self.x_axis_fontsize_spin.setRange(5, 24)
         self.x_axis_fontsize_spin.setValue(14)
         basic_param_layout.addWidget(self.x_axis_fontsize_spin, 7, 1)
         
-        basic_param_layout.addWidget(QLabel("Y轴标签字体大小:"), 8, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["y_axis_fontsize"]), 8, 0)
         self.y_axis_fontsize_spin = QSpinBox()
         self.y_axis_fontsize_spin.setRange(5, 24)
         self.y_axis_fontsize_spin.setValue(14)
@@ -141,34 +148,34 @@ class GSEAVisualizationGUI(QMainWindow):
         tsv_layout.addWidget(basic_param_group)
         
         # Dot Plot特定参数
-        self.dot_param_group = QGroupBox("Dot Plot参数")
+        self.dot_param_group = QGroupBox(self.trans["dot_param_group"])
         dot_param_layout = QGridLayout(self.dot_param_group)
         
-        dot_param_layout.addWidget(QLabel("点大小缩放:"), 0, 0)
+        dot_param_layout.addWidget(QLabel(self.trans["dot_scale"]), 0, 0)
         self.dot_scale_spin = QDoubleSpinBox()
         self.dot_scale_spin.setRange(1, 20)
         self.dot_scale_spin.setValue(3)
         self.dot_scale_spin.valueChanged.connect(self.update_preview)
         dot_param_layout.addWidget(self.dot_scale_spin, 0, 1)
         
-        dot_param_layout.addWidget(QLabel("标记形状:"), 1, 0)
+        dot_param_layout.addWidget(QLabel(self.trans["marker_shape"]), 1, 0)
         self.marker_combo = QComboBox()
         self.marker_combo.addItems(["o", "s", "^", "D", "*", "p", "h", "8"])
         self.marker_combo.currentIndexChanged.connect(self.update_preview)
         dot_param_layout.addWidget(self.marker_combo, 1, 1)
         
-        dot_param_layout.addWidget(QLabel("颜色映射:"), 2, 0)
+        dot_param_layout.addWidget(QLabel(self.trans["colormap"]), 2, 0)
         self.cmap_combo = QComboBox()
         self.cmap_combo.addItems(["viridis", "viridis_r", "plasma", "plasma_r", "Blues", "Blues_r", "Reds", "Reds_r"])
         self.cmap_combo.currentIndexChanged.connect(self.update_preview)
         dot_param_layout.addWidget(self.cmap_combo, 2, 1)
         
-        self.show_ring_check = QCheckBox("显示外环")
+        self.show_ring_check = QCheckBox(self.trans["show_ring"])
         self.show_ring_check.setChecked(True)
         self.show_ring_check.stateChanged.connect(self.update_preview)
         dot_param_layout.addWidget(self.show_ring_check, 3, 0, 1, 2)
         
-        dot_param_layout.addWidget(QLabel("标签旋转:"), 4, 0)
+        dot_param_layout.addWidget(QLabel(self.trans["label_rot"]), 4, 0)
         self.xticklabels_rot_spin = QSpinBox()
         self.xticklabels_rot_spin.setRange(0, 90)
         self.xticklabels_rot_spin.setValue(45)
@@ -176,7 +183,7 @@ class GSEAVisualizationGUI(QMainWindow):
         dot_param_layout.addWidget(self.xticklabels_rot_spin, 4, 1)
         
         # 修改Dot Plot参数组中的legend设置 - 只保留字体大小设置
-        dot_param_layout.addWidget(QLabel("图例字体大小:"), 5, 0)
+        dot_param_layout.addWidget(QLabel(self.trans["legend_fontsize"]), 5, 0)
         self.legend_fontsize_spin = QSpinBox()
         self.legend_fontsize_spin.setRange(5, 18)
         self.legend_fontsize_spin.setValue(10)
@@ -187,7 +194,7 @@ class GSEAVisualizationGUI(QMainWindow):
         tsv_layout.addWidget(self.dot_param_group)
         
         # Bar Plot特定参数
-        self.bar_param_group = QGroupBox("Bar Plot参数")
+        self.bar_param_group = QGroupBox(self.trans["bar_param_group"])
         bar_param_layout = QVBoxLayout(self.bar_param_group)
         
         # 颜色选择
@@ -196,9 +203,9 @@ class GSEAVisualizationGUI(QMainWindow):
         bar_param_layout.addWidget(self.color_list)
         
         color_btn_layout = QHBoxLayout()
-        self.add_color_btn = QPushButton("添加颜色")
+        self.add_color_btn = QPushButton(self.trans["add_color"])
         self.add_color_btn.clicked.connect(self.add_color)
-        self.remove_color_btn = QPushButton("移除颜色")
+        self.remove_color_btn = QPushButton(self.trans["remove_color"])
         self.remove_color_btn.clicked.connect(self.remove_color)
         color_btn_layout.addWidget(self.add_color_btn)
         color_btn_layout.addWidget(self.remove_color_btn)
@@ -206,14 +213,14 @@ class GSEAVisualizationGUI(QMainWindow):
         bar_param_layout.addLayout(color_btn_layout)
         
         # 在Bar Plot参数组中也只保留字体大小设置
-        bar_param_layout.addWidget(QLabel("图例字体大小:"))
+        bar_param_layout.addWidget(QLabel(self.trans["legend_fontsize"]))
         self.bar_legend_fontsize_spin = QSpinBox()
         self.bar_legend_fontsize_spin.setRange(6, 18)
         self.bar_legend_fontsize_spin.setValue(8)
         bar_param_layout.addWidget(self.bar_legend_fontsize_spin)
         
         # 在 Bar Plot 参数组中添加 legend 位置设置
-        bar_param_layout.addWidget(QLabel("图例位置:"))
+        bar_param_layout.addWidget(QLabel(self.trans["legend_pos"]))
         self.bar_legend_pos_combo = QComboBox()
         self.bar_legend_pos_combo.addItems(["right", "center left", "center right", "lower center", "upper center", "best"])
         self.bar_legend_pos_combo.setCurrentText("center right")
@@ -223,7 +230,7 @@ class GSEAVisualizationGUI(QMainWindow):
         self.bar_param_group.hide()  # 初始隐藏
         
         # 绘图按钮
-        self.plot_button = QPushButton("绘制图形")
+        self.plot_button = QPushButton(self.trans["plot_btn"])
         self.plot_button.clicked.connect(self.plot_chart)
         tsv_layout.addWidget(self.plot_button)
         
@@ -232,7 +239,7 @@ class GSEAVisualizationGUI(QMainWindow):
         pkl_layout = QVBoxLayout(self.pkl_tab)
         
         # Term选择
-        term_group = QGroupBox("Term选择")
+        term_group = QGroupBox(self.trans["term_select_group"])
         term_layout = QVBoxLayout(term_group)
         
         self.term_list = QListWidget()
@@ -241,15 +248,15 @@ class GSEAVisualizationGUI(QMainWindow):
         self.term_list.customContextMenuRequested.connect(self.show_term_context_menu)  # 连接右键菜单信号
         term_layout.addWidget(self.term_list)
         
-        self.show_ranking_check = QCheckBox("显示排名")
+        self.show_ranking_check = QCheckBox(self.trans["show_ranking"])
         self.show_ranking_check.setChecked(False)
         term_layout.addWidget(self.show_ranking_check)
         
         # GSEA绘图尺寸和字体设置
-        gsea_param_group = QGroupBox("绘图参数")
+        gsea_param_group = QGroupBox(self.trans["gsea_param_group"])
         gsea_param_layout = QGridLayout(gsea_param_group)
         
-        gsea_param_layout.addWidget(QLabel("图像尺寸:"), 0, 0)
+        gsea_param_layout.addWidget(QLabel(self.trans["img_size"]), 0, 0)
         gsea_size_layout = QHBoxLayout()
         self.gsea_width_spin = QSpinBox()
         self.gsea_width_spin.setRange(4, 20)
@@ -262,27 +269,27 @@ class GSEAVisualizationGUI(QMainWindow):
         gsea_size_layout.addWidget(self.gsea_height_spin)
         gsea_param_layout.addLayout(gsea_size_layout, 0, 1)
         
-        gsea_param_layout.addWidget(QLabel("标签字体大小:"), 1, 0)
+        gsea_param_layout.addWidget(QLabel(self.trans["label_fontsize"]), 1, 0)
         self.gsea_fontsize_spin = QSpinBox()
         self.gsea_fontsize_spin.setRange(5, 20)
         self.gsea_fontsize_spin.setValue(12)
         gsea_param_layout.addWidget(self.gsea_fontsize_spin, 1, 1)
         
         # 在GSEA绘图参数中保留完整的图例设置
-        gsea_param_layout.addWidget(QLabel("图例位置:"), 2, 0)
+        gsea_param_layout.addWidget(QLabel(self.trans["legend_pos"]), 2, 0)
         self.gsea_legend_pos_combo = QComboBox()
         self.gsea_legend_pos_combo.addItems(["right", "center left", "center right", "lower center", "upper center", "best"])
         self.gsea_legend_pos_combo.setCurrentText("best")  # 默认为best
         gsea_param_layout.addWidget(self.gsea_legend_pos_combo, 2, 1)
         
-        gsea_param_layout.addWidget(QLabel("图例字体大小:"), 3, 0)
+        gsea_param_layout.addWidget(QLabel(self.trans["legend_fontsize"]), 3, 0)
         self.gsea_legend_fontsize_spin = QSpinBox()
         self.gsea_legend_fontsize_spin.setRange(5, 18)
         self.gsea_legend_fontsize_spin.setValue(6)  # 默认字体大小为6
         gsea_param_layout.addWidget(self.gsea_legend_fontsize_spin, 3, 1)
         
         # 添加图例位置控制选项
-        gsea_param_layout.addWidget(QLabel("图例在图外:"), 4, 0)
+        gsea_param_layout.addWidget(QLabel(self.trans["legend_outside"]), 4, 0)
         self.gsea_legend_outside_check = QCheckBox()
         self.gsea_legend_outside_check.setChecked(False)  # 默认在图内
         gsea_param_layout.addWidget(self.gsea_legend_outside_check, 4, 1)
@@ -292,13 +299,13 @@ class GSEAVisualizationGUI(QMainWindow):
         pkl_layout.addWidget(term_group)
         
         # 绘图按钮
-        self.gsea_plot_button = QPushButton("绘制GSEA图形")
+        self.gsea_plot_button = QPushButton(self.trans["plot_gsea_btn"])
         self.gsea_plot_button.clicked.connect(self.plot_gsea)
         pkl_layout.addWidget(self.gsea_plot_button)
         
         # 将选项卡添加到选项卡部件
-        self.tab_widget.addTab(self.tsv_tab, "TSV绘图")
-        self.tab_widget.addTab(self.pkl_tab, "GSEA绘图")
+        self.tab_widget.addTab(self.tsv_tab, self.trans["tab_tsv"])
+        self.tab_widget.addTab(self.pkl_tab, self.trans["tab_gsea"])
         self.tab_widget.setTabEnabled(0, False)
         self.tab_widget.setTabEnabled(1, False)
         
@@ -326,7 +333,7 @@ class GSEAVisualizationGUI(QMainWindow):
         elif file_path.lower().endswith('.pkl'):
             self.load_pkl_file(file_path)
         else:
-            QMessageBox.warning(self, "不支持的文件类型", "请选择TSV或PKL文件")
+            QMessageBox.warning(self, self.trans["msg_unsupported_type"], self.trans["msg_select_tsv_pkl"])
     
     def load_tsv_file(self, file_path):
         """加载TSV文件"""
@@ -352,10 +359,10 @@ class GSEAVisualizationGUI(QMainWindow):
             self.tab_widget.setTabEnabled(1, False)
             self.tab_widget.setCurrentIndex(0)
             
-            QMessageBox.information(self, "加载成功", f"成功加载TSV文件，包含{len(self.tsv_data)}行数据")
+            QMessageBox.information(self, self.trans["msg_load_success"], self.trans["msg_tsv_loaded"].format(len(self.tsv_data)))
             
         except Exception as e:
-            QMessageBox.critical(self, "加载失败", f"加载TSV文件时出错：{str(e)}")
+            QMessageBox.critical(self, self.trans["msg_load_fail"], f"{self.trans['msg_load_fail']}: {str(e)}")
     
     def load_pkl_file(self, file_path):
         """加载PKL文件"""
@@ -376,10 +383,10 @@ class GSEAVisualizationGUI(QMainWindow):
             self.tab_widget.setTabEnabled(1, True)
             self.tab_widget.setCurrentIndex(1)
             
-            QMessageBox.information(self, "加载成功", f"成功加载GSEA结果，包含{len(terms)}个Term")
+            QMessageBox.information(self, self.trans["msg_load_success"], self.trans["msg_pkl_loaded"].format(len(terms)))
             
         except Exception as e:
-            QMessageBox.critical(self, "加载失败", f"加载PKL文件时出错：{str(e)}")
+            QMessageBox.critical(self, self.trans["msg_load_fail"], f"{self.trans['msg_load_fail']}: {str(e)}")
     
     def set_default_columns(self):
         """设置默认列名（如果存在）"""
@@ -440,7 +447,7 @@ class GSEAVisualizationGUI(QMainWindow):
         available_values = [v for v in unique_values if v not in existing_keys]
         
         if not available_values:
-            QMessageBox.information(self, "提示", "已为所有值添加了颜色")
+            QMessageBox.information(self, self.trans["msg_error"], self.trans["msg_all_colors_added"])
             return
             
         # 选择值
@@ -481,9 +488,9 @@ class GSEAVisualizationGUI(QMainWindow):
     def show_term_context_menu(self, position):
         """显示Term列表的右键菜单"""
         context_menu = QMenu()
-        select_all_action = context_menu.addAction("全选")
-        deselect_all_action = context_menu.addAction("全不选")
-        invert_selection_action = context_menu.addAction("反选")
+        select_all_action = context_menu.addAction(self.trans["context_select_all"])
+        deselect_all_action = context_menu.addAction(self.trans["context_deselect_all"])
+        invert_selection_action = context_menu.addAction(self.trans["context_invert_selection"])
         
         action = context_menu.exec_(self.term_list.mapToGlobal(position))
         
@@ -504,7 +511,7 @@ class GSEAVisualizationGUI(QMainWindow):
     def plot_chart(self):
         """绘制图表（TSV模式）"""
         if self.tsv_data is None:
-            QMessageBox.warning(self, "错误", "请先加载TSV文件")
+            QMessageBox.warning(self, self.trans["msg_error"], self.trans["msg_load_tsv_first"])
             return
 
         try:
@@ -622,7 +629,7 @@ class GSEAVisualizationGUI(QMainWindow):
             plt.show(block=False)
 
         except Exception as e:
-            QMessageBox.critical(self, "绘图错误", f"绘制图形时发生错误：{str(e)}")
+            QMessageBox.critical(self, self.trans["msg_plot_error"], f"{self.trans['msg_plot_error']}: {str(e)}")
             import traceback
             traceback.print_exc()  # 添加这行来打印详细错误信息
             plt.close('all')
@@ -630,14 +637,14 @@ class GSEAVisualizationGUI(QMainWindow):
     def plot_gsea(self):
         """绘制GSEA图形（PKL模式）"""
         if self.gsea_result is None:
-            QMessageBox.warning(self, "错误", "请先加载GSEA结果文件（PKL）")
+            QMessageBox.warning(self, self.trans["msg_error"], self.trans["msg_load_pkl_first"])
             return
             
         try:
             # 获取选中的Term
             selected_items = self.term_list.selectedItems()
             if not selected_items:
-                QMessageBox.warning(self, "提示", "请至少选择一个Term")
+                QMessageBox.warning(self, self.trans["msg_error"], self.trans["msg_select_term"])
                 return
                 
             selected_terms = [item.text() for item in selected_items]
@@ -706,7 +713,7 @@ class GSEAVisualizationGUI(QMainWindow):
             
             # 创建一个新的窗口来显示这个figure
             gsea_window = QMainWindow()
-            gsea_window.setWindowTitle("GSEA绘图")
+            gsea_window.setWindowTitle("GSEA Plot")
             gsea_window.resize(1200, 800)  # 增加窗口尺寸，为图例留出更多空间
             
             # 创建Qt控件和布局
@@ -741,7 +748,7 @@ class GSEAVisualizationGUI(QMainWindow):
             plt.rcParams.update({'font.size': plt.rcParamsDefault['font.size']})
                 
         except Exception as e:
-            QMessageBox.critical(self, "绘图错误", f"绘制GSEA图形时发生错误：{str(e)}")
+            QMessageBox.critical(self, self.trans["msg_plot_error"], f"{self.trans['msg_plot_error']}: {str(e)}")
             import traceback
             traceback.print_exc()
             plt.close('all')

@@ -7,14 +7,21 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                            QSpinBox)
 import pandas as pd
 
+try:
+    from gseagui.translations import TRANSLATIONS
+except ImportError:
+    from translations import TRANSLATIONS
+
 class GMTGenerator(QMainWindow):
-    def __init__(self):
+    def __init__(self, lang='en'):
         super().__init__()
+        self.lang = lang
+        self.trans = TRANSLATIONS["gmt"][self.lang]
         self.df_anno = None
         self.initUI()
         
     def initUI(self):
-        self.setWindowTitle('GMT File Generator')
+        self.setWindowTitle(self.trans["window_title"])
         self.setGeometry(100, 100, 1000, 800)
         
         # 创建中央部件和主布局
@@ -23,23 +30,23 @@ class GMTGenerator(QMainWindow):
         main_layout = QVBoxLayout(central_widget)
         
         # 文件选择区域
-        file_group = QGroupBox("输入设置")
+        file_group = QGroupBox(self.trans["input_group"])
         file_layout = QVBoxLayout()
         
         # 注释文件选择
         otf_layout = QHBoxLayout()
-        self.otf_btn = QPushButton('选择注释文件', self)
+        self.otf_btn = QPushButton(self.trans["select_anno_btn"], self)
         self.otf_btn.clicked.connect(self.load_annotation_file)
-        self.otf_label = QLabel('未选择文件', self)
+        self.otf_label = QLabel(self.trans["no_file"], self)
         otf_layout.addWidget(self.otf_btn)
         otf_layout.addWidget(self.otf_label)
         file_layout.addLayout(otf_layout)
         
         # 列选择
         cols_layout = QGridLayout()
-        self.id_col_label = QLabel('ID列:', self)
+        self.id_col_label = QLabel(self.trans["id_col"], self)
         self.id_col_combo = QComboBox(self)
-        self.anno_col_label = QLabel('注释列:', self)
+        self.anno_col_label = QLabel(self.trans["anno_col"], self)
         self.anno_col_combo = QComboBox(self)
         cols_layout.addWidget(self.id_col_label, 0, 0)
         cols_layout.addWidget(self.id_col_combo, 0, 1)
@@ -51,13 +58,13 @@ class GMTGenerator(QMainWindow):
         main_layout.addWidget(file_group)
         
         # 注释处理设置
-        process_group = QGroupBox("注释处理设置")
+        process_group = QGroupBox(self.trans["process_group"])
         process_layout = QGridLayout()
         
         # 分隔符设置
-        self.split_check = QCheckBox('启用注释分割', self)
+        self.split_check = QCheckBox(self.trans["enable_split"], self)
         self.split_check.setChecked(False)
-        self.separator_label = QLabel('分隔符:', self)
+        self.separator_label = QLabel(self.trans["separator"], self)
         self.separator_input = QLineEdit(self)
         self.separator_input.setText('|')
         process_layout.addWidget(self.split_check, 0, 0)
@@ -65,7 +72,7 @@ class GMTGenerator(QMainWindow):
         process_layout.addWidget(self.separator_input, 0, 2)
         
         # 过滤设置
-        self.min_genes_label = QLabel('最小基因数:', self)
+        self.min_genes_label = QLabel(self.trans["min_genes"], self)
         self.min_genes_spin = QSpinBox(self)
         self.min_genes_spin.setValue(1)
         self.min_genes_spin.setRange(1, 10000)
@@ -73,7 +80,7 @@ class GMTGenerator(QMainWindow):
         process_layout.addWidget(self.min_genes_spin, 1, 1)
         
         # 无效值过滤
-        self.invalid_values_label = QLabel('无效值 (用逗号分隔):', self)
+        self.invalid_values_label = QLabel(self.trans["invalid_values"], self)
         self.invalid_values_input = QLineEdit(self)
         self.invalid_values_input.setText('None,-,not_found,NA,nan')
         process_layout.addWidget(self.invalid_values_label, 2, 0)
@@ -83,13 +90,13 @@ class GMTGenerator(QMainWindow):
         main_layout.addWidget(process_group)
         
         # 输出设置
-        output_group = QGroupBox("输出设置")
+        output_group = QGroupBox(self.trans["output_group"])
         output_layout = QGridLayout()
         
-        self.output_dir_label = QLabel('输出目录:', self)
+        self.output_dir_label = QLabel(self.trans["output_dir"], self)
         self.output_dir_input = QLineEdit(self)
         self.output_dir_input.setText('gmt_files')
-        self.output_dir_btn = QPushButton('选择...', self)
+        self.output_dir_btn = QPushButton(self.trans["select_btn"], self)
         self.output_dir_btn.clicked.connect(self.select_output_dir)
         output_layout.addWidget(self.output_dir_label, 0, 0)
         output_layout.addWidget(self.output_dir_input, 0, 1)
@@ -103,7 +110,7 @@ class GMTGenerator(QMainWindow):
         main_layout.addWidget(self.progress)
         
         # 日志区域
-        log_group = QGroupBox("处理日志")
+        log_group = QGroupBox(self.trans["log_group"])
         log_layout = QVBoxLayout()
         self.log_text = QTextEdit(self)
         self.log_text.setReadOnly(True)
@@ -112,12 +119,12 @@ class GMTGenerator(QMainWindow):
         main_layout.addWidget(log_group)
         
         # 生成按钮
-        self.generate_btn = QPushButton('生成GMT文件', self)
+        self.generate_btn = QPushButton(self.trans["generate_btn"], self)
         self.generate_btn.clicked.connect(self.generate_gmt)
         main_layout.addWidget(self.generate_btn)
         
         # 初始化状态栏
-        self.statusBar().showMessage('就绪')
+        self.statusBar().showMessage(self.trans["status_ready"])
         
     def log(self, message):
         """添加日志消息"""
@@ -131,14 +138,14 @@ class GMTGenerator(QMainWindow):
         """加载注释文件"""
         file_name, _ = QFileDialog.getOpenFileName(
             self, 
-            '选择注释文件', 
+            self.trans["select_anno_btn"], 
             '', 
             'TSV files (*.tsv);;Text files (*.txt);;All Files (*)'
         )
         
         if file_name:
             try:
-                self.log(f'正在加载注释文件: {file_name}...')
+                self.log(self.trans["msg_loading"].format(file_name))
                 self.df_anno = pd.read_csv(file_name, sep='\t')
                 self.otf_label.setText(os.path.basename(file_name))
                 
@@ -149,25 +156,25 @@ class GMTGenerator(QMainWindow):
                 self.anno_col_combo.addItems(self.df_anno.columns)
                 
                 # 显示基本统计信息
-                self.log('成功加载注释文件:')
+                self.log(self.trans["msg_load_success"])
                 self.log(f'  - 总行数: {len(self.df_anno)}')
                 self.log(f'  - 总列数: {len(self.df_anno.columns)}')
                 self.log(f'  - 列名: {", ".join(self.df_anno.columns)}')
                 
             except Exception as e:
-                QMessageBox.critical(self, '错误', f'无法加载文件: {str(e)}')
-                self.log(f'错误: 加载注释文件失败 - {str(e)}')
+                QMessageBox.critical(self, self.trans["error"], self.trans["msg_load_fail"].format(str(e)))
+                self.log(f'{self.trans["error"]}: {self.trans["msg_load_fail"].format(str(e))}')
     
     def select_output_dir(self):
         """选择输出目录"""
-        dir_name = QFileDialog.getExistingDirectory(self, '选择输出目录')
+        dir_name = QFileDialog.getExistingDirectory(self, self.trans["output_dir"].replace(":", ""))
         if dir_name:
             self.output_dir_input.setText(dir_name)
             
     def generate_gmt(self):
         """生成GMT文件"""
         if self.df_anno is None:
-            QMessageBox.warning(self, '警告', '请先加载注释文件')
+            QMessageBox.warning(self, self.trans["warning"], self.trans["msg_select_anno_first"])
             return
             
         try:
@@ -180,8 +187,8 @@ class GMTGenerator(QMainWindow):
             output_dir = self.output_dir_input.text()
             invalid_values = set(x.strip() for x in self.invalid_values_input.text().split(','))
             
-            self.log('\n开始生成GMT文件...')
-            self.log(f'使用设置:')
+            self.log(self.trans["msg_start_gen"])
+            self.log(self.trans["msg_settings"])
             self.log(f'  - ID列: {id_col}')
             self.log(f'  - 注释列: {anno_col}')
             self.log(f'  - 启用分割: {use_split}')
@@ -192,7 +199,7 @@ class GMTGenerator(QMainWindow):
             # 创建输出目录
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
-                self.log(f'创建输出目录: {output_dir}')
+                self.log(self.trans["msg_create_dir"].format(output_dir))
                 
             # 生成gene sets
             gene_sets = {}
@@ -217,7 +224,7 @@ class GMTGenerator(QMainWindow):
                 
                 if (index + 1) % 5000 == 0:
                     self.progress.setValue(int((index + 1) / total_rows * 100))
-                    self.log(f'处理进度: {index + 1}/{total_rows}')
+                    self.log(self.trans["msg_progress"].format(index + 1, total_rows))
             
             # 移除重复基因并应用最小基因数过滤
             filtered_gene_sets = {pathway: list(genes) for pathway, genes in gene_sets.items() if len(genes) >= min_genes}
@@ -229,8 +236,8 @@ class GMTGenerator(QMainWindow):
                     f.write(f'{pathway}\tNA\t{"\t".join(genes)}\n')
             
             # 输出统计信息
-            self.log('\n处理完成!')
-            self.log(f'统计信息:')
+            self.log(self.trans["msg_complete"])
+            self.log(self.trans["msg_stats"])
             self.log(f'  - 总行数: {total_rows}')
             self.log(f'  - 有效注释数: {valid_annotations}')
             self.log(f'  - 原始通路数: {len(gene_sets)}')
@@ -240,17 +247,17 @@ class GMTGenerator(QMainWindow):
             # 显示每个通路的基因数量分布
             gene_counts = [len(genes) for genes in filtered_gene_sets.values()]
             if gene_counts:
-                self.log('\n通路基因数量统计:')
+                self.log(self.trans["msg_gene_counts"])
                 self.log(f'  - 最小值: {min(gene_counts)}')
                 self.log(f'  - 最大值: {max(gene_counts)}')
                 self.log(f'  - 平均值: {sum(gene_counts)/len(gene_counts):.2f}')
             
             self.progress.setValue(100)
-            QMessageBox.information(self, '完成', 'GMT文件生成完成！')
+            QMessageBox.information(self, self.trans["complete"], self.trans["msg_gen_complete"])
             
         except Exception as e:
-            QMessageBox.critical(self, '错误', f'生成过程中出错: {str(e)}')
-            self.log(f'错误: 生成失败 - {str(e)}')
+            QMessageBox.critical(self, self.trans["error"], self.trans["msg_gen_error"].format(str(e)))
+            self.log(f'{self.trans["error"]}: {self.trans["msg_gen_error"].format(str(e))}')
             self.progress.setValue(0)
 
 
