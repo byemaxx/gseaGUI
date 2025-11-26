@@ -74,15 +74,20 @@ class EnrichmentApp(QMainWindow):
         anno_file_layout.addLayout(anno_file_select_layout)
         
         # 列选择
-        cols_layout = QGridLayout()
+        cols_layout = QHBoxLayout()
         self.gene_col_label = QLabel(self.trans["gene_col"], self)
         self.gene_col_combo = QComboBox(self)
+        self.gene_col_combo.setMinimumWidth(200)
         self.anno_col_label = QLabel(self.trans["anno_col"], self)
         self.anno_col_combo = QComboBox(self)
-        cols_layout.addWidget(self.gene_col_label, 0, 0)
-        cols_layout.addWidget(self.gene_col_combo, 0, 1)
-        cols_layout.addWidget(self.anno_col_label, 0, 2)
-        cols_layout.addWidget(self.anno_col_combo, 0, 3)
+        self.anno_col_combo.setMinimumWidth(200)
+        
+        cols_layout.addWidget(self.gene_col_label)
+        cols_layout.addWidget(self.gene_col_combo)
+        cols_layout.addSpacing(30)
+        cols_layout.addWidget(self.anno_col_label)
+        cols_layout.addWidget(self.anno_col_combo)
+        cols_layout.addStretch()
         anno_file_layout.addLayout(cols_layout)
         
         # 分隔符设置
@@ -163,38 +168,45 @@ class EnrichmentApp(QMainWindow):
         file_select_layout.addWidget(self.gene_file_label)
         file_input_layout.addLayout(file_select_layout)
         
-        file_cols_layout = QHBoxLayout()
+        # Row 1: Gene and Rank columns
+        row1_layout = QHBoxLayout()
         self.gene_col_file_label = QLabel(self.trans["gene_col_file"], self)
         self.gene_col_file_combo = QComboBox(self)
+        self.gene_col_file_combo.setMinimumWidth(150)
+        
         self.rank_col_label = QLabel(self.trans["rank_col"], self)
         self.rank_col_combo = QComboBox(self)
-        self.group_col_label_1 = QLabel(self.trans["group_col_1"], self)  # 添加分组列标签
-        self.group_col_label_2 = QLabel(self.trans["group_col_2"], self)  # 添加分组列标签
-        file_cols_layout.addWidget(self.gene_col_file_label)
-        file_cols_layout.addWidget(self.gene_col_file_combo)
-        file_cols_layout.addWidget(self.rank_col_label)
-        file_cols_layout.addWidget(self.rank_col_combo)
-        file_cols_layout.addWidget(self.group_col_label_1)  # 添加分组列标签到布局
-        file_cols_layout.addWidget(self.group_col_combo_1)  # 添加分组列选择控件到布局
-        file_cols_layout.addWidget(self.group_col_label_2)  # 添加分组列标签到布局
-        file_cols_layout.addWidget(self.group_col_combo_2)
-        self.group_col_label_3 = QLabel(self.trans["group_col_3"], self)  # 添加分组列标签
-        file_cols_layout.addWidget(self.group_col_label_3)  # 添加分组列标签到布局
-        file_cols_layout.addWidget(self.group_col_combo_3)  # 添加分组列选择控件到布局
-        file_input_layout.addLayout(file_cols_layout)
+        self.rank_col_combo.setMinimumWidth(150)
         
-        # 设置尺寸策略
-        self.gene_col_file_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
-        self.rank_col_label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
-        self.group_col_label_1.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
-        self.group_col_label_2.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
-        self.group_col_label_3.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        row1_layout.addWidget(self.gene_col_file_label)
+        row1_layout.addWidget(self.gene_col_file_combo)
+        row1_layout.addSpacing(20)
+        row1_layout.addWidget(self.rank_col_label)
+        row1_layout.addWidget(self.rank_col_combo)
+        row1_layout.addStretch()
+        file_input_layout.addLayout(row1_layout)
         
-        self.gene_col_file_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        self.rank_col_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        self.group_col_combo_1.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        self.group_col_combo_2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        self.group_col_combo_3.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        # Row 2: Group columns
+        row2_layout = QHBoxLayout()
+        self.group_col_label_1 = QLabel(self.trans["group_col_1"], self)
+        self.group_col_combo_1.setMinimumWidth(100)
+        
+        self.group_col_label_2 = QLabel(self.trans["group_col_2"], self)
+        self.group_col_combo_2.setMinimumWidth(100)
+        
+        self.group_col_label_3 = QLabel(self.trans["group_col_3"], self)
+        self.group_col_combo_3.setMinimumWidth(100)
+        
+        row2_layout.addWidget(self.group_col_label_1)
+        row2_layout.addWidget(self.group_col_combo_1)
+        row2_layout.addSpacing(20)
+        row2_layout.addWidget(self.group_col_label_2)
+        row2_layout.addWidget(self.group_col_combo_2)
+        row2_layout.addSpacing(20)
+        row2_layout.addWidget(self.group_col_label_3)
+        row2_layout.addWidget(self.group_col_combo_3)
+        row2_layout.addStretch()
+        file_input_layout.addLayout(row2_layout)
         
         # 直接输入部分
         self.text_input_widget = QWidget()
