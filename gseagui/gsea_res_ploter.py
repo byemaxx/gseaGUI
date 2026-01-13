@@ -15,8 +15,10 @@ from matplotlib.axes import Axes
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QPushButton, QLabel, QComboBox, QFileDialog, QTabWidget, 
                              QSpinBox, QDoubleSpinBox, QCheckBox, QGroupBox, QListWidget,
-                             QGridLayout, QLineEdit, QColorDialog, QMessageBox, QMenu)
+                             QGridLayout, QLineEdit, QColorDialog, QMessageBox, QMenu, QDialog, QDialogButtonBox,
+                             QListWidgetItem)
 from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QAbstractItemView
 
 try:
     from gseagui.translations import TRANSLATIONS
@@ -39,6 +41,11 @@ class GSEAVisualizationGUI(QMainWindow):
         self.column_names = []
         self.colors = {}
         self.mpl_style = "default"
+
+        # TSV: X/Group 值筛选状态
+        self._x_filter_column: str | None = None
+        self._x_filter_selected_values: set[str] = set()
+        self._x_filter_available_values: list[str] = []
         
         # 初始化UI
         self.init_ui()
@@ -102,7 +109,27 @@ class GSEAVisualizationGUI(QMainWindow):
         basic_param_layout.addWidget(QLabel(self.trans["x_group"]), 1, 0)
         self.x_combo = QComboBox()
         self.x_combo.currentIndexChanged.connect(self.update_preview)
-        basic_param_layout.addWidget(self.x_combo, 1, 1)
+        self.x_combo.currentIndexChanged.connect(self.on_x_column_changed)
+
+        x_group_container = QWidget()
+        x_group_v = QVBoxLayout(x_group_container)
+        x_group_v.setContentsMargins(0, 0, 0, 0)
+        x_group_v.setSpacing(2)
+
+        x_group_h = QHBoxLayout()
+        x_group_h.setContentsMargins(0, 0, 0, 0)
+        x_group_h.addWidget(self.x_combo, 1)
+        self.x_filter_btn = QPushButton(self.trans["x_value_filter_btn"])
+        self.x_filter_btn.clicked.connect(self.open_x_value_filter_dialog)
+        self.x_filter_btn.setEnabled(False)
+        x_group_h.addWidget(self.x_filter_btn, 0)
+        x_group_v.addLayout(x_group_h)
+
+        self.x_filter_status_label = QLabel("")
+        self.x_filter_status_label.setStyleSheet("color: #666666; font-size: 11px;")
+        x_group_v.addWidget(self.x_filter_status_label)
+
+        basic_param_layout.addWidget(x_group_container, 1, 1)
         
         basic_param_layout.addWidget(QLabel(self.trans["hue"]), 2, 0)
         self.hue_combo = QComboBox()
@@ -112,7 +139,8 @@ class GSEAVisualizationGUI(QMainWindow):
         basic_param_layout.addWidget(QLabel(self.trans["threshold"]), 3, 0)
         self.thresh_spin = QDoubleSpinBox()
         self.thresh_spin.setRange(0, 1)
-        self.thresh_spin.setSingleStep(0.01)
+        self.thresh_spin.setDecimals(3)
+        self.thresh_spin.setSingleStep(0.001)
         self.thresh_spin.setValue(0.05)
         self.thresh_spin.valueChanged.connect(self.update_preview)
         basic_param_layout.addWidget(self.thresh_spin, 3, 1)
@@ -163,6 +191,8 @@ class GSEAVisualizationGUI(QMainWindow):
         basic_param_layout.addWidget(self.mpl_style_combo, 9, 1)
         
         tsv_layout.addWidget(basic_param_group)
+
+        # X/Group 值筛选改为按钮弹窗，不在主界面占空间
         
         # Dot Plot特定参数
         self.dot_param_group = QGroupBox(self.trans["dot_param_group"])
@@ -395,6 +425,9 @@ class GSEAVisualizationGUI(QMainWindow):
             
             # 预设常见值（如果存在）
             self.set_default_columns()
+
+            # 根据当前 X/Group 列刷新可选组（默认全选）
+            self.refresh_x_value_filter(reset_selection=True)
             
             # 启用TSV选项卡
             self.tab_widget.setTabEnabled(0, True)
@@ -482,7 +515,9 @@ class GSEAVisualizationGUI(QMainWindow):
         if not column_name:
             return
             
-        unique_values = sorted(self.tsv_data[column_name].unique())
+        # 优先基于当前筛选的值添加颜色，避免出现“画不到的组”
+        selected_values = self.get_selected_x_values()
+        unique_values = selected_values if selected_values else sorted(self.tsv_data[column_name].dropna().astype(str).unique())
         
         # 检查是否已有所有值
         existing_keys = [self.color_list.item(i).text().split(':')[0] for i in range(self.color_list.count())]
@@ -561,26 +596,123 @@ class GSEAVisualizationGUI(QMainWindow):
     
     def show_term_context_menu(self, position):
         """显示Term列表的右键菜单"""
+        self.show_multi_select_context_menu(self.term_list, position)
+
+    def show_multi_select_context_menu(self, list_widget: QListWidget, position):
+        """给任意多选 QListWidget 提供全选/全不选/反选右键菜单"""
         context_menu = QMenu()
         select_all_action = context_menu.addAction(self.trans["context_select_all"])
         deselect_all_action = context_menu.addAction(self.trans["context_deselect_all"])
         invert_selection_action = context_menu.addAction(self.trans["context_invert_selection"])
-        
-        action = context_menu.exec_(self.term_list.mapToGlobal(position))
-        
+
+        action = context_menu.exec_(list_widget.mapToGlobal(position))
+
         if action == select_all_action:
-            # 全选
-            for i in range(self.term_list.count()):
-                self.term_list.item(i).setSelected(True)
+            self.set_all_selected(list_widget, True)
         elif action == deselect_all_action:
-            # 全不选
-            for i in range(self.term_list.count()):
-                self.term_list.item(i).setSelected(False)
+            self.set_all_selected(list_widget, False)
         elif action == invert_selection_action:
-            # 反选
-            for i in range(self.term_list.count()):
-                item = self.term_list.item(i)
-                item.setSelected(not item.isSelected())
+            self.invert_selection(list_widget)
+
+    def set_all_selected(self, list_widget: QListWidget, selected: bool):
+        for i in range(list_widget.count()):
+            list_widget.item(i).setSelected(selected)
+
+    def invert_selection(self, list_widget: QListWidget):
+        for i in range(list_widget.count()):
+            item = list_widget.item(i)
+            item.setSelected(not item.isSelected())
+
+    def on_x_column_changed(self, _=None):
+        self.refresh_x_value_filter(reset_selection=True)
+
+    def refresh_x_value_filter(self, reset_selection: bool = False):
+        """刷新 X/Group 列的可选值列表（默认全选）。"""
+        if self.tsv_data is None:
+            return
+
+        column_name = self.x_combo.currentText() if hasattr(self, "x_combo") else ""
+        if not column_name or column_name not in self.tsv_data.columns:
+            self._x_filter_column = None
+            self._x_filter_selected_values = set()
+            self._x_filter_available_values = []
+            if hasattr(self, "x_filter_btn"):
+                self.x_filter_btn.setEnabled(False)
+            self.update_x_filter_status_label()
+            return
+
+        # 取得唯一值（转成 str，保证和 QListWidget 的文本一致）
+        values = (
+            self.tsv_data[column_name]
+            .dropna()
+            .astype(str)
+            .unique()
+            .tolist()
+        )
+        values = sorted(values)
+        self._x_filter_available_values = values
+
+        # 是否需要重置选择（列变化或外部要求）
+        column_changed = (self._x_filter_column != column_name)
+        if column_changed:
+            self._x_filter_column = column_name
+            self._x_filter_selected_values = set()
+            reset_selection = True
+
+        if reset_selection or not self._x_filter_selected_values:
+            self._x_filter_selected_values = set(values)
+        else:
+            self._x_filter_selected_values = self._x_filter_selected_values.intersection(values)
+
+        if hasattr(self, "x_filter_btn"):
+            self.x_filter_btn.setEnabled(True)
+        self.update_x_filter_status_label()
+
+    def update_x_filter_status_label(self):
+        if not hasattr(self, "x_filter_status_label"):
+            return
+        if not self._x_filter_column:
+            self.x_filter_status_label.setText("")
+            return
+        total = len(self._x_filter_available_values)
+        selected = len(self._x_filter_selected_values)
+        if total == 0:
+            self.x_filter_status_label.setText(self.trans.get("x_value_filter_status_empty", ""))
+        elif selected == total:
+            self.x_filter_status_label.setText(self.trans["x_value_filter_status_all"].format(total))
+        else:
+            self.x_filter_status_label.setText(self.trans["x_value_filter_status_some"].format(selected, total))
+
+    def open_x_value_filter_dialog(self):
+        if self.tsv_data is None:
+            QMessageBox.warning(self, self.trans["msg_error"], self.trans["msg_load_tsv_first"])
+            return
+
+        # 确保缓存是最新的
+        self.refresh_x_value_filter(reset_selection=False)
+        if not self._x_filter_column:
+            return
+
+        dlg = XValueFilterDialog(
+            parent=self,
+            title=self.trans["x_value_filter_dialog_title"].format(self._x_filter_column),
+            values=self._x_filter_available_values,
+            selected_values=self._x_filter_selected_values,
+            trans=self.trans,
+        )
+        if dlg.exec_() == QDialog.Accepted:
+            self._x_filter_selected_values = set(dlg.get_selected_values())
+            self.update_x_filter_status_label()
+            self.update_preview()
+
+    def get_selected_x_values(self) -> list[str]:
+        if self.tsv_data is None:
+            return []
+        if not self._x_filter_column:
+            return []
+        if not self._x_filter_selected_values:
+            return []
+        return sorted(self._x_filter_selected_values)
 
     def plot_chart(self):
         """绘制图表（TSV模式）"""
@@ -603,9 +735,20 @@ class GSEAVisualizationGUI(QMainWindow):
             x_axis_fontsize = self.x_axis_fontsize_spin.value()
             y_axis_fontsize = self.y_axis_fontsize_spin.value()
 
+            # 应用 X/Group 值筛选（只绘制选中的组）
+            plot_df = self.tsv_data
+            selected_x_values = self.get_selected_x_values()
+            if selected_x_values and x_group in plot_df.columns:
+                plot_df = plot_df[plot_df[x_group].astype(str).isin(selected_x_values)]
+            elif self._x_filter_column == x_group and self._x_filter_available_values and not selected_x_values:
+                QMessageBox.warning(self, self.trans["msg_error"], self.trans["msg_no_x_values_selected"])
+                return
+
             # 预定义，避免在不同分支中出现未绑定变量
             legend_position = "best"
             bbox_to_anchor = None
+            legend_loc = "best"
+            need_reposition_legend = False
             
             # 只获取 Bar Plot 图例位置参数
             if plot_type == "Bar Plot":
@@ -626,7 +769,7 @@ class GSEAVisualizationGUI(QMainWindow):
                 xticklabels_rot = self.xticklabels_rot_spin.value()
 
                 result = dotplot(
-                    self.tsv_data,
+                    plot_df,
                     column=column,
                     x=x_group,
                     hue=hue,
@@ -664,7 +807,7 @@ class GSEAVisualizationGUI(QMainWindow):
                 
                 # 直接修改传给barplot调用的参数
                 result = barplot(
-                    self.tsv_data,
+                    plot_df,
                     column=column,
                     group=x_group,
                     top_term=top_term,
@@ -672,23 +815,7 @@ class GSEAVisualizationGUI(QMainWindow):
                     title=title,
                     color=color_dict,
                 )
-                
-                # 如果有图例并且需要自定义位置，重新设置图例
-                if ax.get_legend() and bbox_to_anchor:
-                    # 找到现有的图例元素
-                    handles = ax.get_legend().get_lines()
-                    labels = [t.get_text() for t in ax.get_legend().get_texts()]
-                    
-                    # 移除现有图例
-                    ax.get_legend().remove()
-                    
-                    # 创建新图例，位置在图外
-                    ax.legend(
-                        handles, 
-                        labels, 
-                        loc=legend_loc, 
-                        bbox_to_anchor=bbox_to_anchor
-                    )
+                need_reposition_legend = bool(bbox_to_anchor)
 
             # 兼容：gseapy 返回 Axes 或 Figure（不同版本可能不同）
             if result is None:
@@ -716,6 +843,15 @@ class GSEAVisualizationGUI(QMainWindow):
 
             if fig is None or ax is None:
                 raise RuntimeError("Unable to resolve figure/axes from gseapy plot result")
+
+            # Bar Plot：在 ax 解析出来之后再重设图例位置
+            if plot_type == "Bar Plot" and need_reposition_legend and bbox_to_anchor:
+                lgd = ax.get_legend()
+                if lgd is not None:
+                    handles = lgd.legendHandles
+                    labels = [t.get_text() for t in lgd.get_texts()]
+                    lgd.remove()
+                    ax.legend(handles, labels, loc=legend_loc, bbox_to_anchor=bbox_to_anchor)
 
             # 按用户设置强制figsize（直接改figure尺寸比传figsize给gseapy更稳定）
             try:
@@ -746,7 +882,7 @@ class GSEAVisualizationGUI(QMainWindow):
             import traceback
             traceback.print_exc()  # 添加这行来打印详细错误信息
             plt.close('all')
-    
+
     def plot_gsea(self):
         """绘制GSEA图形（PKL模式）"""
         if self.gsea_result is None:
@@ -881,6 +1017,114 @@ class GSEAVisualizationGUI(QMainWindow):
                     plt.rcParams.update({'font.size': matplotlib.rcParamsDefault['font.size']})
             except Exception:
                 pass
+
+
+class XValueFilterDialog(QDialog):
+    def __init__(self, parent: QWidget, title: str, values: list[str], selected_values: set[str], trans: dict):
+        super().__init__(parent)
+        self._values = values
+        self._selected_values = set(selected_values)
+        self._trans = trans
+
+        self.setWindowTitle(title)
+        self.resize(520, 520)
+
+        layout = QVBoxLayout(self)
+
+        self.search_edit = QLineEdit()
+        self.search_edit.setPlaceholderText(self._trans.get("x_value_filter_search", "Search..."))
+        self.search_edit.textChanged.connect(self.apply_filter)
+        layout.addWidget(self.search_edit)
+
+        self.list_widget = QListWidget()
+        # checklist 样式：通过 checkState 选择，不使用高亮选择
+        self.list_widget.setSelectionMode(QAbstractItemView.NoSelection)
+        self.list_widget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.list_widget.customContextMenuRequested.connect(self.show_checklist_context_menu)
+        layout.addWidget(self.list_widget, 1)
+
+        btn_row = QHBoxLayout()
+        select_all_btn = QPushButton(self._trans.get("select_all", "Select All"))
+        select_all_btn.clicked.connect(lambda: self.set_all_checked(True))
+        deselect_all_btn = QPushButton(self._trans.get("deselect_all", "Deselect All"))
+        deselect_all_btn.clicked.connect(lambda: self.set_all_checked(False))
+        invert_btn = QPushButton(self._trans.get("invert_selection", "Invert"))
+        invert_btn.clicked.connect(self.invert_checked)
+        btn_row.addWidget(select_all_btn)
+        btn_row.addWidget(deselect_all_btn)
+        btn_row.addWidget(invert_btn)
+        layout.addLayout(btn_row)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.on_accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+        self.populate()
+
+    def populate(self):
+        self.list_widget.blockSignals(True)
+        self.list_widget.clear()
+        # 恢复勾选；若为空则默认全勾选
+        default_check_all = not self._selected_values
+        for v in self._values:
+            item = QListWidgetItem(v)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            if default_check_all or v in self._selected_values:
+                item.setCheckState(Qt.Checked)
+            else:
+                item.setCheckState(Qt.Unchecked)
+            self.list_widget.addItem(item)
+        self.list_widget.blockSignals(False)
+
+    def apply_filter(self, text: str):
+        needle = (text or "").strip().lower()
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            item.setHidden(bool(needle) and needle not in item.text().lower())
+
+    def show_checklist_context_menu(self, position):
+        context_menu = QMenu()
+        check_all_action = context_menu.addAction(self._trans.get("context_select_all", "Select All"))
+        uncheck_all_action = context_menu.addAction(self._trans.get("context_deselect_all", "Deselect All"))
+        invert_action = context_menu.addAction(self._trans.get("context_invert_selection", "Invert Selection"))
+
+        action = context_menu.exec_(self.list_widget.mapToGlobal(position))
+        if action == check_all_action:
+            self.set_all_checked(True)
+        elif action == uncheck_all_action:
+            self.set_all_checked(False)
+        elif action == invert_action:
+            self.invert_checked()
+
+    def set_all_checked(self, checked: bool):
+        state = Qt.Checked if checked else Qt.Unchecked
+        for i in range(self.list_widget.count()):
+            self.list_widget.item(i).setCheckState(state)
+
+    def invert_checked(self):
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            item.setCheckState(Qt.Unchecked if item.checkState() == Qt.Checked else Qt.Checked)
+
+    def on_accept(self):
+        checked = [
+            self.list_widget.item(i).text()
+            for i in range(self.list_widget.count())
+            if self.list_widget.item(i).checkState() == Qt.Checked
+        ]
+        if not checked:
+            QMessageBox.warning(
+                self,
+                self._trans.get("msg_error", "Error"),
+                self._trans.get("msg_no_x_values_selected", ""),
+            )
+            return
+        self._selected_values = set(checked)
+        self.accept()
+
+    def get_selected_values(self) -> list[str]:
+        return sorted(self._selected_values)
 
 
 def main():
