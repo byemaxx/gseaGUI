@@ -2,11 +2,16 @@ import sys
 import pandas as pd
 import pickle
 import matplotlib
-matplotlib.use('Qt5Agg')
+try:
+    matplotlib.use('QtAgg')
+except Exception:
+    matplotlib.use('Qt5Agg')
 from gseapy import barplot, dotplot
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure, SubFigure
+from matplotlib.axes import Axes
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QPushButton, QLabel, QComboBox, QFileDialog, QTabWidget, 
                              QSpinBox, QDoubleSpinBox, QCheckBox, QGroupBox, QListWidget,
@@ -325,6 +330,31 @@ class GSEAVisualizationGUI(QMainWindow):
         
         # 添加控制面板到主布局
         main_layout.addWidget(control_panel)
+
+    def _show_figure_in_window(self, fig, window_title: str):
+        """在独立Qt窗口中嵌入显示 Matplotlib Figure，避免不同后端/事件循环导致空白窗口。"""
+        plot_window = QMainWindow()
+        plot_window.setWindowTitle(window_title)
+        plot_window.resize(1200, 800)
+
+        central_widget = QWidget()
+        plot_window.setCentralWidget(central_widget)
+        layout = QVBoxLayout(central_widget)
+
+        canvas = FigureCanvas(fig)
+        toolbar = NavigationToolbar(canvas, plot_window)
+        layout.addWidget(toolbar)
+        layout.addWidget(canvas)
+
+        fig.tight_layout()
+        canvas.draw()
+        plot_window.show()
+
+        # 保持窗口引用，避免被GC回收导致窗口/画布异常
+        if not hasattr(self, "_plot_windows"):
+            self._plot_windows = []
+        self._plot_windows.append(plot_window)
+        return plot_window
         
     def load_file(self):
         """加载文件（TSV或PKL）"""
@@ -581,8 +611,12 @@ class GSEAVisualizationGUI(QMainWindow):
             if plot_type == "Bar Plot":
                 legend_position = self.bar_legend_pos_combo.currentText()
 
-            # 改用subplots创建图像和坐标轴
-            fig, ax = plt.subplots(figsize=figsize)
+            # 重要：不要先创建一张空fig再draw它。
+            # 在不同版本 gseapy 中，dotplot/barplot 可能会忽略传入的ax/figsize并自行创建新figure。
+            # 这会造成“只看到坐标轴但内容空白”（我们展示的是空的那张）。
+            # 这里改为：优先信任 gseapy 返回的 Axes/Figure，并用 Qt 内嵌方式显示。
+            ax: Axes | None = None
+            fig: Figure | None = None
 
             if plot_type == "Dot Plot":
                 dot_scale = self.dot_scale_spin.value()
@@ -591,7 +625,7 @@ class GSEAVisualizationGUI(QMainWindow):
                 show_ring = self.show_ring_check.isChecked()
                 xticklabels_rot = self.xticklabels_rot_spin.value()
 
-                ax = dotplot(
+                result = dotplot(
                     self.tsv_data,
                     column=column,
                     x=x_group,
@@ -599,13 +633,11 @@ class GSEAVisualizationGUI(QMainWindow):
                     cutoff=thresh,
                     top_term=top_term,
                     size=dot_scale,
-                    figsize=figsize,
                     title=title,
                     xticklabels_rot=xticklabels_rot,
                     show_ring=show_ring,
                     marker=marker,
                     cmap=cmap,
-                    ax=ax  # 显式传入坐标轴
                 )
             else:  # Bar Plot
                 color_dict = self.colors if self.colors else None
@@ -631,16 +663,14 @@ class GSEAVisualizationGUI(QMainWindow):
                     legend_loc = "best"
                 
                 # 直接修改传给barplot调用的参数
-                ax = barplot(
+                result = barplot(
                     self.tsv_data,
                     column=column,
                     group=x_group,
                     top_term=top_term,
                     cutoff=thresh,
                     title=title,
-                    figsize=figsize,
                     color=color_dict,
-                    ax=ax
                 )
                 
                 # 如果有图例并且需要自定义位置，重新设置图例
@@ -660,6 +690,39 @@ class GSEAVisualizationGUI(QMainWindow):
                         bbox_to_anchor=bbox_to_anchor
                     )
 
+            # 兼容：gseapy 返回 Axes 或 Figure（不同版本可能不同）
+            if result is None:
+                raise RuntimeError("gseapy plotting returned None")
+            if isinstance(result, Axes):
+                ax = result
+                maybe_fig = ax.get_figure()
+                if isinstance(maybe_fig, Figure):
+                    fig = maybe_fig
+                elif isinstance(maybe_fig, SubFigure) and isinstance(getattr(maybe_fig, "figure", None), Figure):
+                    fig = maybe_fig.figure
+                else:
+                    fig = None
+            elif isinstance(result, Figure):
+                fig = result
+                ax = fig.axes[0] if fig.axes else None
+            else:
+                # 兜底：尽量从对象上取出 figure/axes
+                if hasattr(result, "get_figure"):
+                    ax = result  # type: ignore[assignment]
+                    fig = result.get_figure()  # type: ignore[assignment]
+                elif hasattr(result, "axes"):
+                    fig = result  # type: ignore[assignment]
+                    ax = result.axes[0] if result.axes else None  # type: ignore[attr-defined]
+
+            if fig is None or ax is None:
+                raise RuntimeError("Unable to resolve figure/axes from gseapy plot result")
+
+            # 按用户设置强制figsize（直接改figure尺寸比传figsize给gseapy更稳定）
+            try:
+                fig.set_size_inches(figsize[0], figsize[1], forward=True)
+            except Exception:
+                pass
+
             # 设置轴标签字体大小
             ax.xaxis.label.set_size(x_axis_fontsize)
             ax.yaxis.label.set_size(y_axis_fontsize)
@@ -675,9 +738,8 @@ class GSEAVisualizationGUI(QMainWindow):
                     plt.subplots_adjust(right=0.8)
             else:
                 fig.tight_layout()
-                
-            fig.canvas.draw()
-            plt.show(block=False)
+
+            self._show_figure_in_window(fig, "TSV Plot")
 
         except Exception as e:
             QMessageBox.critical(self, self.trans["msg_plot_error"], f"{self.trans['msg_plot_error']}: {str(e)}")
@@ -713,7 +775,7 @@ class GSEAVisualizationGUI(QMainWindow):
             gsea_legend_outside = self.gsea_legend_outside_check.isChecked()
             
             # 准备图例位置参数
-            legend_kws = {'fontsize': gsea_legend_fontsize}
+            legend_kws: dict[str, object] = {'fontsize': gsea_legend_fontsize}
             
             if gsea_legend_outside:
                 # 图例放在图外
@@ -821,8 +883,15 @@ class GSEAVisualizationGUI(QMainWindow):
                 pass
 
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
+def main():
+    app = QApplication.instance()
+    created_app = app is None
+    if created_app:
+        app = QApplication(sys.argv)
     window = GSEAVisualizationGUI()
     window.show()
-    sys.exit(app.exec_())
+    return app.exec_() if created_app else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
