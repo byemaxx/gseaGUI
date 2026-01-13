@@ -39,6 +39,7 @@ TRANSLATIONS = {
             "title": "Title:",
             "x_axis_fontsize": "X Axis Font Size:",
             "y_axis_fontsize": "Y Axis Font Size:",
+            "mpl_style": "Matplotlib Style:",
             "dot_param_group": "Dot Plot Parameters",
             "dot_scale": "Dot Scale:",
             "marker_shape": "Marker Shape:",
@@ -71,6 +72,7 @@ TRANSLATIONS = {
             "msg_load_pkl_first": "Please load GSEA result file (PKL) first",
             "msg_select_term": "Please select at least one Term",
             "msg_all_colors_added": "Colors added for all values",
+            "msg_style_apply_fail": "Failed to apply matplotlib style: {}",
             "context_select_all": "Select All",
             "context_deselect_all": "Deselect All",
             "context_invert_selection": "Invert Selection"
@@ -91,6 +93,7 @@ TRANSLATIONS = {
             "title": "标题:",
             "x_axis_fontsize": "X轴标签字体大小:",
             "y_axis_fontsize": "Y轴标签字体大小:",
+            "mpl_style": "Matplotlib主题:",
             "dot_param_group": "Dot Plot参数",
             "dot_scale": "点大小缩放:",
             "marker_shape": "标记形状:",
@@ -123,6 +126,7 @@ TRANSLATIONS = {
             "msg_load_pkl_first": "请先加载GSEA结果文件（PKL）",
             "msg_select_term": "请至少选择一个Term",
             "msg_all_colors_added": "已为所有值添加了颜色",
+            "msg_style_apply_fail": "应用Matplotlib主题失败: {}",
             "context_select_all": "全选",
             "context_deselect_all": "全不选",
             "context_invert_selection": "反选"

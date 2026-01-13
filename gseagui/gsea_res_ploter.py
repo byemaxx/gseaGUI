@@ -33,9 +33,13 @@ class GSEAVisualizationGUI(QMainWindow):
         self.current_file_type = None
         self.column_names = []
         self.colors = {}
+        self.mpl_style = "default"
         
         # 初始化UI
         self.init_ui()
+
+        # 应用默认主题（不弹窗）
+        self.set_mpl_style(self.mpl_style, silent=True)
         
     def init_ui(self):
         """初始化主UI"""
@@ -144,6 +148,14 @@ class GSEAVisualizationGUI(QMainWindow):
         self.y_axis_fontsize_spin.setRange(5, 24)
         self.y_axis_fontsize_spin.setValue(14)
         basic_param_layout.addWidget(self.y_axis_fontsize_spin, 8, 1)
+
+        # Matplotlib主题/样式
+        basic_param_layout.addWidget(QLabel(self.trans["mpl_style"]), 9, 0)
+        self.mpl_style_combo = QComboBox()
+        self.mpl_style_combo.addItems(self.get_available_mpl_styles())
+        self.mpl_style_combo.setCurrentText(self.mpl_style)
+        self.mpl_style_combo.currentIndexChanged.connect(self.on_mpl_style_changed)
+        basic_param_layout.addWidget(self.mpl_style_combo, 9, 1)
         
         tsv_layout.addWidget(basic_param_group)
         
@@ -484,6 +496,38 @@ class GSEAVisualizationGUI(QMainWindow):
     def update_preview(self):
         """更新预览（暂不实现，以避免性能问题）"""
         pass
+
+    def get_available_mpl_styles(self):
+        styles = ["default"]
+        try:
+            available = list(getattr(plt.style, "available", []))
+            for style in sorted(set(available)):
+                if style != "default":
+                    styles.append(style)
+        except Exception:
+            # 如果环境中获取可用主题失败，至少保留default
+            pass
+        return styles
+
+    def set_mpl_style(self, style: str, silent: bool = False):
+        try:
+            # 清理上一次主题/rcParams残余设置，再应用新主题
+            plt.rcdefaults()
+            plt.style.use(style)
+            self.mpl_style = style
+        except Exception as e:
+            if not silent:
+                QMessageBox.warning(
+                    self,
+                    self.trans["msg_error"],
+                    self.trans["msg_style_apply_fail"].format(str(e)),
+                )
+
+    def on_mpl_style_changed(self, _=None):
+        style = self.mpl_style_combo.currentText() if hasattr(self, "mpl_style_combo") else "default"
+        if not style:
+            style = "default"
+        self.set_mpl_style(style, silent=False)
     
     def show_term_context_menu(self, position):
         """显示Term列表的右键菜单"""
@@ -515,6 +559,9 @@ class GSEAVisualizationGUI(QMainWindow):
             return
 
         try:
+            # 确保使用当前选择的matplotlib主题
+            self.set_mpl_style(self.mpl_style, silent=True)
+
             plot_type = self.plot_type_combo.currentText()
             column = self.column_combo.currentText()
             x_group = self.x_combo.currentText()
@@ -525,6 +572,10 @@ class GSEAVisualizationGUI(QMainWindow):
             title = self.title_edit.text()
             x_axis_fontsize = self.x_axis_fontsize_spin.value()
             y_axis_fontsize = self.y_axis_fontsize_spin.value()
+
+            # 预定义，避免在不同分支中出现未绑定变量
+            legend_position = "best"
+            bbox_to_anchor = None
             
             # 只获取 Bar Plot 图例位置参数
             if plot_type == "Bar Plot":
@@ -640,7 +691,11 @@ class GSEAVisualizationGUI(QMainWindow):
             QMessageBox.warning(self, self.trans["msg_error"], self.trans["msg_load_pkl_first"])
             return
             
+        _prev_font_size = None
         try:
+            # 确保使用当前选择的matplotlib主题
+            self.set_mpl_style(self.mpl_style, silent=True)
+
             # 获取选中的Term
             selected_items = self.term_list.selectedItems()
             if not selected_items:
@@ -678,7 +733,8 @@ class GSEAVisualizationGUI(QMainWindow):
                 # 图例放在图内
                 legend_kws.update({'loc': gsea_legend_position})
             
-            # 设置matplotlib字体大小
+            # 设置matplotlib字体大小（并在结束后恢复）
+            _prev_font_size = plt.rcParams.get('font.size')
             plt.rcParams.update({'font.size': gsea_fontsize})
             
             # 关闭已存在的图形窗口
@@ -745,7 +801,10 @@ class GSEAVisualizationGUI(QMainWindow):
             self._gsea_window = gsea_window
             
             # 恢复默认字体大小设置
-            plt.rcParams.update({'font.size': plt.rcParamsDefault['font.size']})
+            if _prev_font_size is not None:
+                plt.rcParams.update({'font.size': _prev_font_size})
+            else:
+                plt.rcParams.update({'font.size': matplotlib.rcParamsDefault['font.size']})
                 
         except Exception as e:
             QMessageBox.critical(self, self.trans["msg_plot_error"], f"{self.trans['msg_plot_error']}: {str(e)}")
@@ -753,7 +812,13 @@ class GSEAVisualizationGUI(QMainWindow):
             traceback.print_exc()
             plt.close('all')
             # 恢复默认字体大小设置
-            plt.rcParams.update({'font.size': plt.rcParamsDefault['font.size']})
+            try:
+                if _prev_font_size is not None:
+                    plt.rcParams.update({'font.size': _prev_font_size})
+                else:
+                    plt.rcParams.update({'font.size': matplotlib.rcParamsDefault['font.size']})
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
