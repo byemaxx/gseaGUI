@@ -6,7 +6,7 @@ on:
       python_version:
         description: "Python version used for build"
         required: true
-        default: "3.11"
+        default: "3.13.11"
       create_release:
         description: "Create a GitHub Release and upload exe"
         required: true
