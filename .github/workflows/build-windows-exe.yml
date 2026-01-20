@@ -40,7 +40,8 @@ jobs:
       - name: Set up Conda
         uses: conda-incubator/setup-miniconda@v3
         with:
-          miniforge-variant: Mambaforge
+          # Mambaforge 已停止发布，latest 下载链接会 404；改用仍在维护的 Miniforge3。
+          miniforge-variant: Miniforge3
           miniforge-version: latest
           activate-environment: gseagui
           python-version: ${{ inputs.python_version }}
