@@ -6,7 +6,8 @@ on:
       python_version:
         description: "Python version used for build"
         required: true
-        default: "3.13.11"
+        # PyQt5 wheels对最新版本支持可能滞后，默认用更稳的 3.11（可在手动触发时改）。
+        default: "3.11"
       create_release:
         description: "Create a GitHub Release and upload exe"
         required: true
@@ -37,6 +38,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Show workspace files
+        shell: pwsh
+        run: |
+          Write-Host "GITHUB_WORKSPACE=$env:GITHUB_WORKSPACE"
+          Get-ChildItem -Force
+
       - name: Set up Conda
         uses: conda-incubator/setup-miniconda@v3
         with:
@@ -55,11 +62,90 @@ jobs:
           python -m pip install .
           python -m pip install pyinstaller
 
+      - name: Generate PyInstaller spec (runtime)
+        shell: pwsh
+        run: |
+          $specPath = Join-Path $env:GITHUB_WORKSPACE 'gseagui-onefile.spec'
+          $specContent = @'
+# -*- mode: python ; coding: utf-8 -*-
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+from PyInstaller.utils.hooks import collect_submodules, collect_data_files
+
+block_cipher = None
+
+# 不依赖 __file__：某些 PyInstaller 版本执行 spec 时不会定义它
+PROJECT_ROOT = Path(globals().get("SPECPATH", os.getcwd())).resolve()
+PACKAGE_DIR = PROJECT_ROOT / "gseagui"
+ENTRY_SCRIPT = PACKAGE_DIR / "main.py"
+
+hiddenimports = []
+hiddenimports += collect_submodules("gseagui")
+# gseapy / matplotlib 有不少动态导入；显式收集可减少运行时报错。
+hiddenimports += collect_submodules("gseapy")
+hiddenimports += collect_submodules("matplotlib")
+
+# 目前 gseagui/assets 为空；保留规则，未来加图标/资源时无需改 spec。
+datas = []
+datas += collect_data_files("gseagui", includes=["assets/**/*"], include_py_files=False)
+
+from PyInstaller.building.build_main import Analysis, PYZ, EXE
+
+a = Analysis(
+    [str(ENTRY_SCRIPT)],
+    pathex=[str(PROJECT_ROOT)],
+    binaries=[],
+    datas=datas,
+    hiddenimports=hiddenimports,
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
+    noarchive=False,
+)
+
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    [],
+    name="gseagui",
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=False,
+)
+  '@
+
+        $specContent | Set-Content -Path $specPath -Encoding UTF8
+
+          if (!(Test-Path $specPath)) { throw "Failed to create spec file at: $specPath" }
+          Write-Host "Created spec: $specPath"
+
       - name: Build onefile exe
         shell: pwsh
         run: |
-          python -m PyInstaller -y --clean gseagui-onefile.spec
-          if (!(Test-Path "dist/gseagui.exe")) { throw "Build succeeded but dist/gseagui.exe not found" }
+          $spec = Join-Path $env:GITHUB_WORKSPACE 'gseagui-onefile.spec'
+          if (!(Test-Path $spec)) { throw "Spec file not found: $spec" }
+
+          python -m PyInstaller -y --clean $spec
+          if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed with exit code $LASTEXITCODE" }
+
+          if (!(Test-Path "dist/gseagui.exe")) { throw "dist/gseagui.exe not found" }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
