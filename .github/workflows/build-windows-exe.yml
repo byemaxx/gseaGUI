@@ -50,17 +50,23 @@ jobs:
           # Mambaforge 已停止发布，latest 下载链接会 404；改用仍在维护的 Miniforge3。
           miniforge-variant: Miniforge3
           miniforge-version: latest
-          activate-environment: gseagui
-          python-version: ${{ inputs.python_version }}
-          auto-activate-base: false
+          auto-activate: false
+          channels: conda-forge
+          conda-remove-defaults: true
+
+      - name: Create conda env
+        shell: pwsh
+        run: |
+          conda create -n gseagui -y -c conda-forge python=${{ inputs.python_version }} pip
+          conda info --envs
 
       - name: Install dependencies
         shell: pwsh
         run: |
-          python -m pip install --upgrade pip
+          conda run -n gseagui --no-capture-output python -m pip install --upgrade pip
           # Install project deps (from pyproject.toml) + PyInstaller
-          python -m pip install .
-          python -m pip install pyinstaller
+          conda run -n gseagui --no-capture-output python -m pip install .
+          conda run -n gseagui --no-capture-output python -m pip install pyinstaller
 
       - name: Generate PyInstaller spec (runtime)
         shell: pwsh
@@ -83,11 +89,15 @@ jobs:
             'PACKAGE_DIR = PROJECT_ROOT / "gseagui"',
             'ENTRY_SCRIPT = PACKAGE_DIR / "main.py"',
             '',
-            'hiddenimports = []',
-            'hiddenimports += collect_submodules("gseagui")',
-            '# gseapy / matplotlib 有不少动态导入；显式收集可减少运行时报错。',
+            'hiddenimports = [',
+            '    "gseagui.gsea_res_ploter",',
+            '    "gseagui.gmt_generator",',
+            '    "gseagui.gsea_runner",',
+            '    "gseagui.enrichment_tools",',
+            '    "gseagui.translations",',
+            ']',
+            '# gseapy 有动态导入；显式收集可减少运行时报错。',
             'hiddenimports += collect_submodules("gseapy")',
-            'hiddenimports += collect_submodules("matplotlib")',
             '',
             '# 目前 gseagui/assets 为空；保留规则，未来加图标/资源时无需改 spec。',
             'datas = []',
@@ -142,7 +152,7 @@ jobs:
           $spec = Join-Path $env:GITHUB_WORKSPACE 'gseagui-onefile.spec'
           if (!(Test-Path $spec)) { throw "Spec file not found: $spec" }
 
-          python -m PyInstaller -y --clean $spec
+          conda run -n gseagui --no-capture-output python -m PyInstaller -y --clean $spec
           if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed with exit code $LASTEXITCODE" }
 
           if (!(Test-Path "dist/gseagui.exe")) { throw "dist/gseagui.exe not found" }

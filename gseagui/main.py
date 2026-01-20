@@ -9,6 +9,9 @@ try:
     from gseagui.gsea_runner import EnrichmentApp
     from gseagui.translations import TRANSLATIONS
 except ImportError:
+    # 打包成 exe（sys.frozen=True）时不应走本地脚本导入分支，否则会把真实错误掩盖掉。
+    if getattr(sys, "frozen", False):
+        raise
     from gsea_res_ploter import GSEAVisualizationGUI
     from gmt_generator import GMTGenerator
     from gsea_runner import EnrichmentApp
