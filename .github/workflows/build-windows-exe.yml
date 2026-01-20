@@ -1,0 +1,89 @@
+name: Build Windows EXE
+
+on:
+  workflow_dispatch:
+    inputs:
+      python_version:
+        description: "Python version used for build"
+        required: true
+        default: "3.11"
+      create_release:
+        description: "Create a GitHub Release and upload exe"
+        required: true
+        type: boolean
+        default: false
+      release_tag:
+        description: "Release tag (e.g. v0.1.6). Required if create_release=true"
+        required: false
+        default: ""
+      release_name:
+        description: "Release title (optional)"
+        required: false
+        default: ""
+      prerelease:
+        description: "Mark release as prerelease"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Conda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-variant: Mambaforge
+          miniforge-version: latest
+          activate-environment: gseagui
+          python-version: ${{ inputs.python_version }}
+          auto-activate-base: false
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          # Install project deps (from pyproject.toml) + PyInstaller
+          python -m pip install .
+          python -m pip install pyinstaller
+
+      - name: Build onefile exe
+        shell: pwsh
+        run: |
+          python -m PyInstaller -y --clean gseagui-onefile.spec
+          if (!(Test-Path "dist/gseagui.exe")) { throw "Build succeeded but dist/gseagui.exe not found" }
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gseagui-windows-exe
+          path: dist/gseagui.exe
+          if-no-files-found: error
+
+      - name: Validate release inputs
+        if: ${{ inputs.create_release }}
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace("${{ inputs.release_tag }}")) {
+            throw "release_tag is required when create_release=true"
+          }
+
+      - name: Create GitHub Release
+        if: ${{ inputs.create_release }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          name: ${{ inputs.release_name != '' && inputs.release_name || inputs.release_tag }}
+          prerelease: ${{ inputs.prerelease }}
+          generate_release_notes: true
+          files: |
+            dist/gseagui.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
