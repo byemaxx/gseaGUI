@@ -8,7 +8,7 @@ TRANSLATIONS = {
             "vis_btn": "GSEA Visualization",
             "gmt_btn": "GMT Generator",
             "github_btn": "Project Homepage",
-            "version": "Version 0.1.7",
+            "version": "Version {version}",
             "window_title": "GSEA GUI Toolkit"
         },
         "zh": {
@@ -18,7 +18,7 @@ TRANSLATIONS = {
             "vis_btn": "GSEA结果可视化",
             "gmt_btn": "GMT文件生成器",
             "github_btn": "项目主页",
-            "version": "版本 0.1.7",
+            "version": "版本 {version}",
             "window_title": "GSEA GUI工具集"
         }
     },

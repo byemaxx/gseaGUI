@@ -2,10 +2,37 @@
 
 from __future__ import annotations
 
+from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
+import re
 from typing import TYPE_CHECKING, Any
 
-__version__ = "0.1.7"
 __author__ = "Qing"
+
+
+def _version_from_pyproject() -> str | None:
+    pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    if not pyproject_path.exists():
+        return None
+    text = pyproject_path.read_text(encoding="utf-8")
+    project_match = re.search(r"(?ms)^\[project\]\s*$(.*?)(^\[|\Z)", text)
+    if not project_match:
+        return None
+    project_block = project_match.group(1)
+    version_match = re.search(r"(?m)^version\s*=\s*\"([^\"]+)\"\s*$", project_block)
+    if not version_match:
+        return None
+    return version_match.group(1)
+
+
+_source_version = _version_from_pyproject()
+if _source_version:
+    __version__ = _source_version
+else:
+    try:
+        __version__ = version("gseagui")
+    except PackageNotFoundError:
+        __version__ = "0.0.0"
 
 # 为了方便使用，导出主要类（延迟导入，避免打包/启动时因为子模块缺失导致整个包导入失败）
 __all__ = [

@@ -7,6 +7,7 @@ try:
     from gseagui.gmt_generator import GMTGenerator
     from gseagui.gsea_runner import EnrichmentApp
     from gseagui.translations import TRANSLATIONS
+    from gseagui import __version__ as APP_VERSION
 except ImportError:
     # 打包成 exe（sys.frozen=True）时不应走本地脚本导入分支，否则会把真实错误掩盖掉。
     if getattr(sys, "frozen", False):
@@ -15,6 +16,7 @@ except ImportError:
     from gmt_generator import GMTGenerator
     from gsea_runner import EnrichmentApp
     from translations import TRANSLATIONS
+    from __init__ import __version__ as APP_VERSION
 
 class MainGUI(QMainWindow):
     def __init__(self):
@@ -99,7 +101,9 @@ class MainGUI(QMainWindow):
         bottom_layout.addStretch()
         
         # Version label
-        self.version_label = QLabel(TRANSLATIONS["main"][self.current_lang]["version"])
+        self.version_label = QLabel(
+            TRANSLATIONS["main"][self.current_lang]["version"].format(version=APP_VERSION)
+        )
         self.version_label.setAlignment(Qt.AlignRight)
         bottom_layout.addWidget(self.version_label)
         
@@ -136,7 +140,7 @@ class MainGUI(QMainWindow):
         self.gsea_vis_btn.setText(texts["vis_btn"])
         self.gmt_gen_btn.setText(texts["gmt_btn"])
         self.github_label.setText(f'<a href="https://github.com/byemaxx/gseaGUI">{texts["github_btn"]}</a>')
-        self.version_label.setText(texts["version"])
+        self.version_label.setText(texts["version"].format(version=APP_VERSION))
     
     def open_enrichment_app(self):
         """Open Enrichment App Window"""
