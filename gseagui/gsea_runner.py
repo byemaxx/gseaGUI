@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                            QHBoxLayout, QPushButton, QFileDialog, QLabel, 
                            QComboBox, QTextEdit, QMessageBox, QProgressDialog,
-                           QCheckBox, QLineEdit, QGroupBox, QGridLayout,QSizePolicy,
+                           QCheckBox, QLineEdit, QGroupBox, QGridLayout,
                            QRadioButton, QButtonGroup, QTabWidget, QSpinBox)
 # import QIntValidator
 from PyQt5.QtCore import  Qt
@@ -42,7 +42,7 @@ class EnrichmentApp(QMainWindow):
         
     def initUI(self):
         self.setWindowTitle(self.trans["window_title"])
-        fit_window_to_available_screen(self, 1200, 800)
+        fit_window_to_available_screen(self, 850, 600, max_ratio=0.65)
         
         # 创建中央部件和主布局
         central_widget = QWidget()

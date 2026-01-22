@@ -27,7 +27,7 @@ class GMTGenerator(QMainWindow):
         
     def initUI(self):
         self.setWindowTitle(self.trans["window_title"])
-        fit_window_to_available_screen(self, 1000, 800)
+        fit_window_to_available_screen(self, 750, 550, max_ratio=0.65)
         
         # 创建中央部件和主布局
         central_widget = QWidget()

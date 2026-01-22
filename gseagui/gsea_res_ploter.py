@@ -37,7 +37,7 @@ class GSEAVisualizationGUI(QMainWindow):
         self.trans = TRANSLATIONS["ploter"][self.lang]
         
         self.setWindowTitle(self.trans["window_title"])
-        fit_window_to_available_screen(self, 1200, 800)
+        fit_window_to_available_screen(self, 850, 600, max_ratio=0.65)
         
         # 数据存储
         self.tsv_data = None
