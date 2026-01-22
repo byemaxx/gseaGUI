@@ -14,7 +14,7 @@ on:
         type: boolean
         default: false
       release_tag:
-        description: "Release tag (e.g. v0.1.6). Required if create_release=true"
+        description: "Release tag (e.g. v0.1.7). Required if create_release=true"
         required: false
         default: ""
       release_name:

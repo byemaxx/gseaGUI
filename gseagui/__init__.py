@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-__version__ = "0.1.6"
+__version__ = "0.1.7"
 __author__ = "Qing"
 
 # 为了方便使用，导出主要类（延迟导入，避免打包/启动时因为子模块缺失导致整个包导入失败）

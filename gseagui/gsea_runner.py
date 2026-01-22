@@ -16,6 +16,11 @@ import os
 import pandas as pd
 import pickle
 
+try:
+    from gseagui.qt_utils import fit_window_to_available_screen
+except ImportError:
+    from qt_utils import fit_window_to_available_screen
+
 class EnrichmentApp(QMainWindow):
     def __init__(self, lang='en'):
         super().__init__()
@@ -37,7 +42,7 @@ class EnrichmentApp(QMainWindow):
         
     def initUI(self):
         self.setWindowTitle(self.trans["window_title"])
-        self.setGeometry(100, 100, 1200, 800)
+        fit_window_to_available_screen(self, 1200, 800)
         
         # 创建中央部件和主布局
         central_widget = QWidget()

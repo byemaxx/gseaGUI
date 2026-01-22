@@ -21,6 +21,11 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QAbstractItemView
 
 try:
+    from gseagui.qt_utils import fit_window_to_available_screen
+except ImportError:
+    from qt_utils import fit_window_to_available_screen
+
+try:
     from gseagui.translations import TRANSLATIONS
 except ImportError:
     from translations import TRANSLATIONS
@@ -32,7 +37,7 @@ class GSEAVisualizationGUI(QMainWindow):
         self.trans = TRANSLATIONS["ploter"][self.lang]
         
         self.setWindowTitle(self.trans["window_title"])
-        self.setGeometry(100, 100, 1200, 800)
+        fit_window_to_available_screen(self, 1200, 800)
         
         # 数据存储
         self.tsv_data = None

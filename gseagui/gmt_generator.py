@@ -8,6 +8,11 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 import pandas as pd
 
 try:
+    from gseagui.qt_utils import fit_window_to_available_screen
+except ImportError:
+    from qt_utils import fit_window_to_available_screen
+
+try:
     from gseagui.translations import TRANSLATIONS
 except ImportError:
     from translations import TRANSLATIONS
@@ -22,7 +27,7 @@ class GMTGenerator(QMainWindow):
         
     def initUI(self):
         self.setWindowTitle(self.trans["window_title"])
-        self.setGeometry(100, 100, 1000, 800)
+        fit_window_to_available_screen(self, 1000, 800)
         
         # 创建中央部件和主布局
         central_widget = QWidget()

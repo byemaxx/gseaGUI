@@ -1,5 +1,4 @@
 import sys
-import webbrowser
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QComboBox, QHBoxLayout
 from PyQt5.QtCore import Qt
 
@@ -155,7 +154,17 @@ class MainGUI(QMainWindow):
         self.gmt_gen_window.show()
 
 def main():
+    # Enable HiDPI scaling before the QApplication is created to improve clarity on high-resolution displays.
+    if hasattr(QApplication, "setAttribute") and hasattr(Qt, "AA_EnableHighDpiScaling"):
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+    if hasattr(QApplication, "setAttribute") and hasattr(Qt, "AA_UseHighDpiPixmaps"):
+        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+
     app = QApplication(sys.argv)
+
+    if hasattr(QApplication, "setHighDpiScaleFactorRoundingPolicy") and hasattr(Qt, "HighDpiScaleFactorRoundingPolicy"):
+        QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
+
     window = MainGUI()
     window.show()
     sys.exit(app.exec_())
