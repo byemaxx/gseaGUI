@@ -17,7 +17,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QH
                              QPushButton, QLabel, QComboBox, QFileDialog, QTabWidget, 
                              QSpinBox, QDoubleSpinBox, QCheckBox, QGroupBox, QListWidget,
                              QGridLayout, QLineEdit, QColorDialog, QMessageBox, QMenu, QDialog, QDialogButtonBox,
-                             QListWidgetItem)
+                             QListWidgetItem, QScrollArea, QToolButton, QSizePolicy)
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QAbstractItemView
 
@@ -91,6 +91,49 @@ class GSEAVisualizationGUI(QMainWindow):
         # TSV选项卡
         self.tsv_tab = QWidget()
         tsv_layout = QVBoxLayout(self.tsv_tab)
+
+        # TSV 内部滚动容器（避免控件多导致窗口被撑高）
+        tsv_scroll = QScrollArea()
+        tsv_scroll.setWidgetResizable(True)
+        tsv_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        tsv_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        tsv_scroll.setFrameShape(QScrollArea.NoFrame)
+
+        tsv_inner = QWidget()
+        tsv_inner_layout = QVBoxLayout(tsv_inner)
+        tsv_inner_layout.setContentsMargins(0, 0, 0, 0)
+        tsv_inner_layout.setSpacing(8)
+        tsv_scroll.setWidget(tsv_inner)
+
+        tsv_layout.addWidget(tsv_scroll)
+
+        def _make_collapsible(title: str, content: QWidget, *, collapsed: bool = False) -> QWidget:
+            container = QWidget()
+            container_layout = QVBoxLayout(container)
+            container_layout.setContentsMargins(0, 0, 0, 0)
+            container_layout.setSpacing(2)
+
+            toggle = QToolButton()
+            toggle.setText(title)
+            toggle.setCheckable(True)
+            toggle.setChecked(not collapsed)
+            toggle.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+            toggle.setArrowType(Qt.DownArrow if not collapsed else Qt.RightArrow)
+            toggle.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+            content.setVisible(not collapsed)
+
+            def _on_toggled(checked: bool):
+                content.setVisible(checked)
+                toggle.setArrowType(Qt.DownArrow if checked else Qt.RightArrow)
+                # 触发布局重新计算
+                container.adjustSize()
+
+            toggle.toggled.connect(_on_toggled)
+
+            container_layout.addWidget(toggle)
+            container_layout.addWidget(content)
+            return container
         
         # 绘图类型
         plot_type_group = QGroupBox(self.trans["plot_type_group"])
@@ -108,11 +151,11 @@ class GSEAVisualizationGUI(QMainWindow):
         self.axis_hint_label.setStyleSheet("color: #444444; font-size: 11px;")
         plot_type_layout.addWidget(self.axis_hint_label)
         
-        tsv_layout.addWidget(plot_type_group)
+        tsv_inner_layout.addWidget(plot_type_group)
         
         # 基本参数
-        basic_param_group = QGroupBox(self.trans["basic_param_group"])
-        basic_param_layout = QGridLayout(basic_param_group)
+        self.basic_param_group = QGroupBox(self.trans["basic_param_group"])
+        basic_param_layout = QGridLayout(self.basic_param_group)
 
         basic_param_layout.addWidget(QLabel(self.trans.get("term_column", "Y-axis (Term) Column:")), 0, 0)
         self.term_column_combo = QComboBox()
@@ -218,7 +261,11 @@ class GSEAVisualizationGUI(QMainWindow):
         self.min_gene_ratio_spin.valueChanged.connect(self.update_axis_hints)
         filter_layout.addWidget(self.min_gene_ratio_spin, 3, 1)
 
-        tsv_layout.addWidget(filter_group)
+        # 过滤/排序也比较占空间，放到可折叠区（默认展开）
+        filter_title = filter_group.title()
+        filter_group.setTitle("")
+        self.filter_section = _make_collapsible(filter_title, filter_group, collapsed=False)
+        tsv_inner_layout.addWidget(self.filter_section)
         
         basic_param_layout.addWidget(QLabel(self.trans["img_size"]), 7, 0)
         size_layout = QHBoxLayout()
@@ -258,7 +305,11 @@ class GSEAVisualizationGUI(QMainWindow):
         self.mpl_style_combo.currentIndexChanged.connect(self.on_mpl_style_changed)
         basic_param_layout.addWidget(self.mpl_style_combo, 11, 1)
         
-        tsv_layout.addWidget(basic_param_group)
+        # Basic Parameters 放入可折叠区（默认展开）
+        basic_title = self.basic_param_group.title()
+        self.basic_param_group.setTitle("")
+        self.basic_param_section = _make_collapsible(basic_title, self.basic_param_group, collapsed=False)
+        tsv_inner_layout.addWidget(self.basic_param_section)
 
         # X/Group 值筛选改为按钮弹窗，不在主界面占空间
         
@@ -306,7 +357,10 @@ class GSEAVisualizationGUI(QMainWindow):
         
         # 移除图例位置和外部显示的控制选项
         
-        tsv_layout.addWidget(self.dot_param_group)
+        dot_title = self.dot_param_group.title()
+        self.dot_param_group.setTitle("")
+        self.dot_param_section = _make_collapsible(dot_title, self.dot_param_group, collapsed=False)
+        tsv_inner_layout.addWidget(self.dot_param_section)
         
         # Bar Plot特定参数
         self.bar_param_group = QGroupBox(self.trans["bar_param_group"])
@@ -341,13 +395,19 @@ class GSEAVisualizationGUI(QMainWindow):
         self.bar_legend_pos_combo.setCurrentText("center right")
         bar_param_layout.addWidget(self.bar_legend_pos_combo)
         
-        tsv_layout.addWidget(self.bar_param_group)
-        self.bar_param_group.hide()  # 初始隐藏
+        bar_title = self.bar_param_group.title()
+        self.bar_param_group.setTitle("")
+        self.bar_param_section = _make_collapsible(bar_title, self.bar_param_group, collapsed=False)
+        tsv_inner_layout.addWidget(self.bar_param_section)
+        self.bar_param_section.hide()  # 初始隐藏
         
         # 绘图按钮
         self.plot_button = QPushButton(self.trans["plot_btn"])
         self.plot_button.clicked.connect(self.plot_chart)
-        tsv_layout.addWidget(self.plot_button)
+        tsv_inner_layout.addWidget(self.plot_button)
+
+        # 顶部对齐，底部留伸缩空间
+        tsv_inner_layout.addStretch(1)
         
         # PKL选项卡
         self.pkl_tab = QWidget()
@@ -706,11 +766,23 @@ class GSEAVisualizationGUI(QMainWindow):
         plot_type = self.plot_type_combo.currentText()
         
         if (plot_type == "Dot Plot"):
-            self.dot_param_group.show()
-            self.bar_param_group.hide()
+            if hasattr(self, "dot_param_section"):
+                self.dot_param_section.show()
+            else:
+                self.dot_param_group.show()
+            if hasattr(self, "bar_param_section"):
+                self.bar_param_section.hide()
+            else:
+                self.bar_param_group.hide()
         else:  # Bar Plot
-            self.dot_param_group.hide()
-            self.bar_param_group.show()
+            if hasattr(self, "dot_param_section"):
+                self.dot_param_section.hide()
+            else:
+                self.dot_param_group.hide()
+            if hasattr(self, "bar_param_section"):
+                self.bar_param_section.show()
+            else:
+                self.bar_param_group.show()
 
         self.update_axis_hints()
 
