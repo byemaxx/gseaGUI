@@ -267,7 +267,14 @@ class GMTGenerator(QMainWindow):
 
 
 def main():
+    try:
+        from gseagui.qt_utils import apply_application_ui_scale, set_qt_highdpi_attributes
+    except ImportError:
+        from qt_utils import apply_application_ui_scale, set_qt_highdpi_attributes
+
+    set_qt_highdpi_attributes()
     app = QApplication(sys.argv)
+    apply_application_ui_scale(app)
     window = GMTGenerator()
     window.show()
     sys.exit(app.exec_())

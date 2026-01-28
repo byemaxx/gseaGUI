@@ -3,6 +3,11 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QPu
 from PyQt5.QtCore import Qt
 
 try:
+    from gseagui.qt_utils import apply_application_ui_scale, set_qt_highdpi_attributes
+except ImportError:
+    from qt_utils import apply_application_ui_scale, set_qt_highdpi_attributes
+
+try:
     from gseagui.gsea_res_ploter import GSEAVisualizationGUI
     from gseagui.gmt_generator import GMTGenerator
     from gseagui.gsea_runner import EnrichmentApp
@@ -158,16 +163,12 @@ class MainGUI(QMainWindow):
         self.gmt_gen_window.show()
 
 def main():
-    # Enable HiDPI scaling before the QApplication is created to improve clarity on high-resolution displays.
-    if hasattr(QApplication, "setAttribute") and hasattr(Qt, "AA_EnableHighDpiScaling"):
-        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
-    if hasattr(QApplication, "setAttribute") and hasattr(Qt, "AA_UseHighDpiPixmaps"):
-        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
-
+    # Configure HiDPI behavior before QApplication is created.
+    set_qt_highdpi_attributes()
     app = QApplication(sys.argv)
 
-    if hasattr(QApplication, "setHighDpiScaleFactorRoundingPolicy") and hasattr(Qt, "HighDpiScaleFactorRoundingPolicy"):
-        QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
+    # Slightly shrink UI on HiDPI by default; override via env var `GSEAGUI_UI_SCALE`.
+    apply_application_ui_scale(app)
 
     window = MainGUI()
     window.show()

@@ -111,7 +111,7 @@ class EnrichmentApp(QMainWindow):
         invalid_values_layout = QHBoxLayout()
         self.invalid_values_label = QLabel(self.trans["exclude_values"], self)
         self.invalid_values_input = QLineEdit(self)
-        self.invalid_values_input.setText('None,-,not_found,nan')
+        self.invalid_values_input.setText('None,-,not_found,nan,NA')
         invalid_values_layout.addWidget(self.invalid_values_label)
         invalid_values_layout.addWidget(self.invalid_values_input)
         anno_file_layout.addLayout(invalid_values_layout)
@@ -630,7 +630,14 @@ class EnrichmentApp(QMainWindow):
         self.gsea_params_widget.setVisible(self.gsea_radio.isChecked())
 
 def main():
+    try:
+        from gseagui.qt_utils import apply_application_ui_scale, set_qt_highdpi_attributes
+    except ImportError:
+        from qt_utils import apply_application_ui_scale, set_qt_highdpi_attributes
+
+    set_qt_highdpi_attributes()
     app = QApplication(sys.argv)
+    apply_application_ui_scale(app)
     window = EnrichmentApp()
     window.show()
     sys.exit(app.exec_())

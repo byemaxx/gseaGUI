@@ -74,8 +74,11 @@ def run_enrichment_app():
     import sys
     from PyQt5.QtWidgets import QApplication
     from .gsea_runner import EnrichmentApp
+    from .qt_utils import apply_application_ui_scale, set_qt_highdpi_attributes
     
+    set_qt_highdpi_attributes()
     app = QApplication(sys.argv)
+    apply_application_ui_scale(app)
     window = EnrichmentApp()
     window.show()
     sys.exit(app.exec_())
@@ -85,8 +88,11 @@ def run_visualization_app():
     import sys
     from PyQt5.QtWidgets import QApplication
     from .gsea_res_ploter import GSEAVisualizationGUI
+    from .qt_utils import apply_application_ui_scale, set_qt_highdpi_attributes
     
+    set_qt_highdpi_attributes()
     app = QApplication(sys.argv)
+    apply_application_ui_scale(app)
     window = GSEAVisualizationGUI()
     window.show()
     sys.exit(app.exec_())
@@ -96,8 +102,11 @@ def run_gmt_generator():
     import sys
     from PyQt5.QtWidgets import QApplication
     from .gmt_generator import GMTGenerator
+    from .qt_utils import apply_application_ui_scale, set_qt_highdpi_attributes
     
+    set_qt_highdpi_attributes()
     app = QApplication(sys.argv)
+    apply_application_ui_scale(app)
     window = GMTGenerator()
     window.show()
     sys.exit(app.exec_())

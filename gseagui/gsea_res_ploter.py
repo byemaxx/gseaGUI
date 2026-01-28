@@ -1624,10 +1624,17 @@ class XValueFilterDialog(QDialog):
 
 
 def main():
+    try:
+        from gseagui.qt_utils import apply_application_ui_scale, set_qt_highdpi_attributes
+    except ImportError:
+        from qt_utils import apply_application_ui_scale, set_qt_highdpi_attributes
+
     app = QApplication.instance()
     created_app = app is None
     if created_app:
+        set_qt_highdpi_attributes()
         app = QApplication(sys.argv)
+    apply_application_ui_scale(app)
     window = GSEAVisualizationGUI()
     window.show()
     return app.exec_() if created_app else 0
