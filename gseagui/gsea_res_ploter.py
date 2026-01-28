@@ -48,10 +48,10 @@ class GSEAVisualizationGUI(QMainWindow):
         self.colors = {}
         self.mpl_style = "default"
 
-        # TSV: X/Group 值筛选状态
-        self._x_filter_column: str | None = None
-        self._x_filter_selected_values: set[str] = set()
-        self._x_filter_available_values: list[str] = []
+        # TSV: 通用列过滤（任意列 -> 多选取值）
+        self._data_filter_column: str | None = None
+        self._data_filter_selected_values: set[str] = set()
+        self._data_filter_available_values: list[str] = []
         
         # 初始化UI
         self.init_ui()
@@ -134,6 +134,30 @@ class GSEAVisualizationGUI(QMainWindow):
             container_layout.addWidget(toggle)
             container_layout.addWidget(content)
             return container
+
+        # =====================
+        # 数据过滤（放到 TSV 页最上面）
+        # =====================
+        data_filter_group = QGroupBox(self.trans.get("data_filter_group", "Data Filter"))
+        data_filter_layout = QGridLayout(data_filter_group)
+
+        data_filter_layout.addWidget(QLabel(self.trans.get("data_filter_column", "Filter column:")), 0, 0)
+        self.data_filter_column_combo = QComboBox()
+        self.data_filter_column_combo.addItem("")
+        self.data_filter_column_combo.currentIndexChanged.connect(self.on_data_filter_column_changed)
+        data_filter_layout.addWidget(self.data_filter_column_combo, 0, 1)
+
+        self.data_filter_btn = QPushButton(self.trans.get("data_filter_btn", "Filter values..."))
+        self.data_filter_btn.clicked.connect(self.open_data_filter_dialog)
+        self.data_filter_btn.setEnabled(False)
+        data_filter_layout.addWidget(self.data_filter_btn, 0, 2)
+
+        self.data_filter_status_label = QLabel("")
+        self.data_filter_status_label.setStyleSheet("color: #666666; font-size: 11px;")
+        self.data_filter_status_label.setWordWrap(True)
+        data_filter_layout.addWidget(self.data_filter_status_label, 1, 0, 1, 3)
+
+        tsv_inner_layout.addWidget(data_filter_group)
         
         # 绘图类型
         plot_type_group = QGroupBox(self.trans["plot_type_group"])
@@ -157,49 +181,43 @@ class GSEAVisualizationGUI(QMainWindow):
         self.basic_param_group = QGroupBox(self.trans["basic_param_group"])
         basic_param_layout = QGridLayout(self.basic_param_group)
 
-        basic_param_layout.addWidget(QLabel(self.trans.get("term_column", "Y-axis (Term) Column:")), 0, 0)
+        # 左侧标签列太窄时会被裁剪：设置最小宽度并允许换行
+        basic_param_layout.setColumnMinimumWidth(0, 180)
+
+        _lbl = QLabel(self.trans.get("term_column", "Y-axis (Term) Column:"))
+        _lbl.setWordWrap(True)
+        basic_param_layout.addWidget(_lbl, 0, 0)
         self.term_column_combo = QComboBox()
         self.term_column_combo.currentIndexChanged.connect(self.update_preview)
         self.term_column_combo.currentIndexChanged.connect(self.update_axis_hints)
         basic_param_layout.addWidget(self.term_column_combo, 0, 1)
         
-        basic_param_layout.addWidget(QLabel(self.trans["column"]), 1, 0)
+        _lbl = QLabel(self.trans["column"])
+        _lbl.setWordWrap(True)
+        basic_param_layout.addWidget(_lbl, 1, 0)
         self.column_combo = QComboBox()
         self.column_combo.currentIndexChanged.connect(self.update_preview)
         basic_param_layout.addWidget(self.column_combo, 1, 1)
         
-        basic_param_layout.addWidget(QLabel(self.trans["x_group"]), 2, 0)
+        _lbl = QLabel(self.trans["x_group"])
+        _lbl.setWordWrap(True)
+        basic_param_layout.addWidget(_lbl, 2, 0)
         self.x_combo = QComboBox()
         self.x_combo.currentIndexChanged.connect(self.update_preview)
-        self.x_combo.currentIndexChanged.connect(self.on_x_column_changed)
         self.x_combo.currentIndexChanged.connect(self.update_axis_hints)
 
-        x_group_container = QWidget()
-        x_group_v = QVBoxLayout(x_group_container)
-        x_group_v.setContentsMargins(0, 0, 0, 0)
-        x_group_v.setSpacing(2)
-
-        x_group_h = QHBoxLayout()
-        x_group_h.setContentsMargins(0, 0, 0, 0)
-        x_group_h.addWidget(self.x_combo, 1)
-        self.x_filter_btn = QPushButton(self.trans["x_value_filter_btn"])
-        self.x_filter_btn.clicked.connect(self.open_x_value_filter_dialog)
-        self.x_filter_btn.setEnabled(False)
-        x_group_h.addWidget(self.x_filter_btn, 0)
-        x_group_v.addLayout(x_group_h)
-
-        self.x_filter_status_label = QLabel("")
-        self.x_filter_status_label.setStyleSheet("color: #666666; font-size: 11px;")
-        x_group_v.addWidget(self.x_filter_status_label)
-
-        basic_param_layout.addWidget(x_group_container, 2, 1)
+        basic_param_layout.addWidget(self.x_combo, 2, 1)
         
-        basic_param_layout.addWidget(QLabel(self.trans["hue"]), 3, 0)
+        _lbl = QLabel(self.trans["hue"])
+        _lbl.setWordWrap(True)
+        basic_param_layout.addWidget(_lbl, 3, 0)
         self.hue_combo = QComboBox()
         self.hue_combo.currentIndexChanged.connect(self.update_preview)
         basic_param_layout.addWidget(self.hue_combo, 3, 1)
         
-        basic_param_layout.addWidget(QLabel(self.trans["threshold"]), 4, 0)
+        _lbl = QLabel(self.trans["threshold"])
+        _lbl.setWordWrap(True)
+        basic_param_layout.addWidget(_lbl, 4, 0)
         self.thresh_spin = QDoubleSpinBox()
         self.thresh_spin.setRange(0, 1)
         self.thresh_spin.setDecimals(3)
@@ -209,7 +227,9 @@ class GSEAVisualizationGUI(QMainWindow):
         self.thresh_spin.valueChanged.connect(self.update_axis_hints)
         basic_param_layout.addWidget(self.thresh_spin, 4, 1)
         
-        basic_param_layout.addWidget(QLabel(self.trans["top_term"]), 5, 0)
+        _lbl = QLabel(self.trans["top_term"])
+        _lbl.setWordWrap(True)
+        basic_param_layout.addWidget(_lbl, 5, 0)
         self.top_term_spin = QSpinBox()
         self.top_term_spin.setRange(1, 500)
         self.top_term_spin.setValue(10)
@@ -267,7 +287,9 @@ class GSEAVisualizationGUI(QMainWindow):
         self.filter_section = _make_collapsible(filter_title, filter_group, collapsed=False)
         tsv_inner_layout.addWidget(self.filter_section)
         
-        basic_param_layout.addWidget(QLabel(self.trans["img_size"]), 7, 0)
+        _lbl = QLabel(self.trans["img_size"])
+        _lbl.setWordWrap(True)
+        basic_param_layout.addWidget(_lbl, 7, 0)
         size_layout = QHBoxLayout()
         self.width_spin = QSpinBox()
         self.width_spin.setRange(1, 20)
@@ -280,25 +302,33 @@ class GSEAVisualizationGUI(QMainWindow):
         size_layout.addWidget(self.height_spin)
         basic_param_layout.addLayout(size_layout, 7, 1)
         
-        basic_param_layout.addWidget(QLabel(self.trans["title"]), 8, 0)
+        _lbl = QLabel(self.trans["title"])
+        _lbl.setWordWrap(True)
+        basic_param_layout.addWidget(_lbl, 8, 0)
         self.title_edit = QLineEdit("")
         basic_param_layout.addWidget(self.title_edit, 8, 1)
         
         # 在基本参数组中添加轴标签字体大小设置
-        basic_param_layout.addWidget(QLabel(self.trans["x_axis_fontsize"]), 9, 0)
+        _lbl = QLabel(self.trans["x_axis_fontsize"])
+        _lbl.setWordWrap(True)
+        basic_param_layout.addWidget(_lbl, 9, 0)
         self.x_axis_fontsize_spin = QSpinBox()
         self.x_axis_fontsize_spin.setRange(5, 24)
         self.x_axis_fontsize_spin.setValue(14)
         basic_param_layout.addWidget(self.x_axis_fontsize_spin, 9, 1)
         
-        basic_param_layout.addWidget(QLabel(self.trans["y_axis_fontsize"]), 10, 0)
+        _lbl = QLabel(self.trans["y_axis_fontsize"])
+        _lbl.setWordWrap(True)
+        basic_param_layout.addWidget(_lbl, 10, 0)
         self.y_axis_fontsize_spin = QSpinBox()
         self.y_axis_fontsize_spin.setRange(5, 24)
         self.y_axis_fontsize_spin.setValue(14)
         basic_param_layout.addWidget(self.y_axis_fontsize_spin, 10, 1)
 
         # Matplotlib主题/样式
-        basic_param_layout.addWidget(QLabel(self.trans["mpl_style"]), 11, 0)
+        _lbl = QLabel(self.trans["mpl_style"])
+        _lbl.setWordWrap(True)
+        basic_param_layout.addWidget(_lbl, 11, 0)
         self.mpl_style_combo = QComboBox()
         self.mpl_style_combo.addItems(self.get_available_mpl_styles())
         self.mpl_style_combo.setCurrentText(self.mpl_style)
@@ -401,13 +431,13 @@ class GSEAVisualizationGUI(QMainWindow):
         tsv_inner_layout.addWidget(self.bar_param_section)
         self.bar_param_section.hide()  # 初始隐藏
         
-        # 绘图按钮
-        self.plot_button = QPushButton(self.trans["plot_btn"])
-        self.plot_button.clicked.connect(self.plot_chart)
-        tsv_inner_layout.addWidget(self.plot_button)
-
         # 顶部对齐，底部留伸缩空间
         tsv_inner_layout.addStretch(1)
+
+        # 绘图按钮：放在滚动窗口之外，始终可见
+        self.plot_button = QPushButton(self.trans["plot_btn"])
+        self.plot_button.clicked.connect(self.plot_chart)
+        tsv_layout.addWidget(self.plot_button)
         
         # PKL选项卡
         self.pkl_tab = QWidget()
@@ -555,12 +585,25 @@ class GSEAVisualizationGUI(QMainWindow):
             self.hue_combo.addItems(self.column_names)
             self.term_column_combo.addItems(self.column_names)
             self.sort_by_combo.addItems(self._get_sort_candidates(self.column_names))
+
+            # 通用过滤列下拉
+            if hasattr(self, "data_filter_column_combo"):
+                self.data_filter_column_combo.blockSignals(True)
+                self.data_filter_column_combo.clear()
+                self.data_filter_column_combo.addItem("")
+                self.data_filter_column_combo.addItems(self.column_names)
+                self.data_filter_column_combo.setCurrentIndex(0)
+                self.data_filter_column_combo.blockSignals(False)
+
+                # 重置过滤状态
+                self._data_filter_column = None
+                self._data_filter_selected_values = set()
+                self._data_filter_available_values = []
+                self.data_filter_btn.setEnabled(False)
+                self.update_data_filter_status_label()
             
             # 预设常见值（如果存在）
             self.set_default_columns()
-
-            # 根据当前 X/Group 列刷新可选组（默认全选）
-            self.refresh_x_value_filter(reset_selection=True)
             
             # 启用TSV选项卡
             self.tab_widget.setTabEnabled(0, True)
@@ -571,6 +614,115 @@ class GSEAVisualizationGUI(QMainWindow):
             
         except Exception as e:
             QMessageBox.critical(self, self.trans["msg_load_fail"], f"{self.trans['msg_load_fail']}: {str(e)}")
+
+    # =====================
+    # 通用列过滤（任意列）
+    # =====================
+    def on_data_filter_column_changed(self, _=None):
+        self.refresh_data_filter(reset_selection=True)
+        self.update_preview()
+
+    def refresh_data_filter(self, reset_selection: bool = False):
+        if self.tsv_data is None:
+            return
+        if not hasattr(self, "data_filter_column_combo"):
+            return
+
+        column_name = self.data_filter_column_combo.currentText().strip()
+        if not column_name:
+            self._data_filter_column = None
+            self._data_filter_selected_values = set()
+            self._data_filter_available_values = []
+            if hasattr(self, "data_filter_btn"):
+                self.data_filter_btn.setEnabled(False)
+            self.update_data_filter_status_label()
+            return
+
+        if column_name not in self.tsv_data.columns:
+            self._data_filter_column = None
+            self._data_filter_selected_values = set()
+            self._data_filter_available_values = []
+            self.data_filter_btn.setEnabled(False)
+            self.update_data_filter_status_label()
+            return
+
+        values = (
+            self.tsv_data[column_name]
+            .dropna()
+            .astype(str)
+            .unique()
+            .tolist()
+        )
+        values = sorted(values)
+        self._data_filter_available_values = values
+
+        column_changed = (self._data_filter_column != column_name)
+        if column_changed:
+            self._data_filter_column = column_name
+            self._data_filter_selected_values = set()
+            reset_selection = True
+
+        if reset_selection or not self._data_filter_selected_values:
+            self._data_filter_selected_values = set(values)
+        else:
+            self._data_filter_selected_values = self._data_filter_selected_values.intersection(values)
+
+        self.data_filter_btn.setEnabled(True)
+        self.update_data_filter_status_label()
+
+    def update_data_filter_status_label(self):
+        if not hasattr(self, "data_filter_status_label"):
+            return
+        if not self._data_filter_column:
+            self.data_filter_status_label.setText(self.trans.get("data_filter_status_none", "No filter applied"))
+            return
+
+        total = len(self._data_filter_available_values)
+        selected = len(self._data_filter_selected_values)
+        if total == 0:
+            self.data_filter_status_label.setText(self.trans.get("data_filter_status_empty", "No values"))
+        elif selected == total:
+            self.data_filter_status_label.setText(
+                self.trans.get("data_filter_status_all", "Selected all ({} values)").format(total)
+            )
+        else:
+            self.data_filter_status_label.setText(
+                self.trans.get("data_filter_status_some", "Selected {}/{} values").format(selected, total)
+            )
+
+    def open_data_filter_dialog(self):
+        if self.tsv_data is None:
+            QMessageBox.warning(self, self.trans["msg_error"], self.trans["msg_load_tsv_first"])
+            return
+
+        self.refresh_data_filter(reset_selection=False)
+        if not self._data_filter_column:
+            return
+
+        dlg = XValueFilterDialog(
+            parent=self,
+            title=self.trans.get("data_filter_dialog_title", "Filter values for: {}").format(self._data_filter_column),
+            values=self._data_filter_available_values,
+            selected_values=self._data_filter_selected_values,
+            trans=self.trans,
+            empty_selection_message=self.trans.get(
+                "msg_no_filter_values_selected",
+                "No values selected. Please select at least one.",
+            ),
+        )
+        if dlg.exec_() == QDialog.Accepted:
+            self._data_filter_selected_values = set(dlg.get_selected_values())
+            self.update_data_filter_status_label()
+            self.update_preview()
+
+    def get_selected_data_filter_values(self) -> list[str]:
+        if self.tsv_data is None:
+            return []
+        if not self._data_filter_column:
+            return []
+        if not self._data_filter_selected_values:
+            return []
+        return sorted(self._data_filter_selected_values)
     
     def load_pkl_file(self, file_path):
         """加载PKL文件"""
@@ -827,7 +979,7 @@ class GSEAVisualizationGUI(QMainWindow):
     
     def add_color(self):
         """添加颜色配置"""
-        if not self.tsv_data is not None:
+        if self.tsv_data is None:
             return
             
         # 获取当前X/Group列的唯一值
@@ -835,8 +987,11 @@ class GSEAVisualizationGUI(QMainWindow):
         if not column_name:
             return
             
-        # 优先基于当前筛选的值添加颜色，避免出现“画不到的组”
-        selected_values = self.get_selected_x_values()
+        # 若通用过滤正好过滤的是 X/Group 列，则基于过滤后的取值添加颜色
+        selected_values: list[str] = []
+        if self._data_filter_column == column_name:
+            selected_values = self.get_selected_data_filter_values()
+
         unique_values = selected_values if selected_values else sorted(self.tsv_data[column_name].dropna().astype(str).unique())
         
         # 检查是否已有所有值
@@ -943,97 +1098,6 @@ class GSEAVisualizationGUI(QMainWindow):
             item = list_widget.item(i)
             item.setSelected(not item.isSelected())
 
-    def on_x_column_changed(self, _=None):
-        self.refresh_x_value_filter(reset_selection=True)
-
-    def refresh_x_value_filter(self, reset_selection: bool = False):
-        """刷新 X/Group 列的可选值列表（默认全选）。"""
-        if self.tsv_data is None:
-            return
-
-        column_name = self.x_combo.currentText() if hasattr(self, "x_combo") else ""
-        if not column_name or column_name not in self.tsv_data.columns:
-            self._x_filter_column = None
-            self._x_filter_selected_values = set()
-            self._x_filter_available_values = []
-            if hasattr(self, "x_filter_btn"):
-                self.x_filter_btn.setEnabled(False)
-            self.update_x_filter_status_label()
-            return
-
-        # 取得唯一值（转成 str，保证和 QListWidget 的文本一致）
-        values = (
-            self.tsv_data[column_name]
-            .dropna()
-            .astype(str)
-            .unique()
-            .tolist()
-        )
-        values = sorted(values)
-        self._x_filter_available_values = values
-
-        # 是否需要重置选择（列变化或外部要求）
-        column_changed = (self._x_filter_column != column_name)
-        if column_changed:
-            self._x_filter_column = column_name
-            self._x_filter_selected_values = set()
-            reset_selection = True
-
-        if reset_selection or not self._x_filter_selected_values:
-            self._x_filter_selected_values = set(values)
-        else:
-            self._x_filter_selected_values = self._x_filter_selected_values.intersection(values)
-
-        if hasattr(self, "x_filter_btn"):
-            self.x_filter_btn.setEnabled(True)
-        self.update_x_filter_status_label()
-
-    def update_x_filter_status_label(self):
-        if not hasattr(self, "x_filter_status_label"):
-            return
-        if not self._x_filter_column:
-            self.x_filter_status_label.setText("")
-            return
-        total = len(self._x_filter_available_values)
-        selected = len(self._x_filter_selected_values)
-        if total == 0:
-            self.x_filter_status_label.setText(self.trans.get("x_value_filter_status_empty", ""))
-        elif selected == total:
-            self.x_filter_status_label.setText(self.trans["x_value_filter_status_all"].format(total))
-        else:
-            self.x_filter_status_label.setText(self.trans["x_value_filter_status_some"].format(selected, total))
-
-    def open_x_value_filter_dialog(self):
-        if self.tsv_data is None:
-            QMessageBox.warning(self, self.trans["msg_error"], self.trans["msg_load_tsv_first"])
-            return
-
-        # 确保缓存是最新的
-        self.refresh_x_value_filter(reset_selection=False)
-        if not self._x_filter_column:
-            return
-
-        dlg = XValueFilterDialog(
-            parent=self,
-            title=self.trans["x_value_filter_dialog_title"].format(self._x_filter_column),
-            values=self._x_filter_available_values,
-            selected_values=self._x_filter_selected_values,
-            trans=self.trans,
-        )
-        if dlg.exec_() == QDialog.Accepted:
-            self._x_filter_selected_values = set(dlg.get_selected_values())
-            self.update_x_filter_status_label()
-            self.update_preview()
-
-    def get_selected_x_values(self) -> list[str]:
-        if self.tsv_data is None:
-            return []
-        if not self._x_filter_column:
-            return []
-        if not self._x_filter_selected_values:
-            return []
-        return sorted(self._x_filter_selected_values)
-
     def plot_chart(self):
         """绘制图表（TSV模式）"""
         if self.tsv_data is None:
@@ -1055,14 +1119,23 @@ class GSEAVisualizationGUI(QMainWindow):
             x_axis_fontsize = self.x_axis_fontsize_spin.value()
             y_axis_fontsize = self.y_axis_fontsize_spin.value()
 
-            # 应用 X/Group 值筛选（只绘制选中的组）
             plot_df = self.tsv_data
-            selected_x_values = self.get_selected_x_values()
-            if selected_x_values and x_group in plot_df.columns:
-                plot_df = plot_df[plot_df[x_group].astype(str).isin(selected_x_values)]
-            elif self._x_filter_column == x_group and self._x_filter_available_values and not selected_x_values:
-                QMessageBox.warning(self, self.trans["msg_error"], self.trans["msg_no_x_values_selected"])
-                return
+
+            # 先应用“通用列过滤”（任意列 -> 多选取值）
+            if self._data_filter_column and self._data_filter_column in plot_df.columns:
+                selected_filter_values = self.get_selected_data_filter_values()
+                if selected_filter_values:
+                    plot_df = plot_df[plot_df[self._data_filter_column].astype(str).isin(selected_filter_values)]
+                elif self._data_filter_available_values:
+                    QMessageBox.warning(
+                        self,
+                        self.trans["msg_error"],
+                        self.trans.get(
+                            "msg_no_filter_values_selected",
+                            "No values selected. Please select at least one.",
+                        ),
+                    )
+                    return
 
             # Hypergeometric/ORA: term列映射 + overlap过滤 + 排序/TopN
             plot_df = self._prepare_plot_df(plot_df)
@@ -1110,7 +1183,7 @@ class GSEAVisualizationGUI(QMainWindow):
                 )
             else:  # Bar Plot
                 color_dict = self.colors if self.colors else None
-                
+
                 # 对barplot的调用，直接传递legend位置参数
                 if legend_position == "right":
                     bbox_to_anchor = (1, 0.5)
@@ -1135,8 +1208,7 @@ class GSEAVisualizationGUI(QMainWindow):
                 else:  # best
                     bbox_to_anchor = None
                     legend_loc = "best"
-                
-                # 直接修改传给barplot调用的参数
+
                 with warnings.catch_warnings():
                     # gseapy 内部对 pandas groupby.apply 的用法会触发 FutureWarning；这里局部静默避免干扰用户。
                     warnings.simplefilter("ignore", FutureWarning)
@@ -1434,11 +1506,20 @@ class GSEAVisualizationGUI(QMainWindow):
 
 
 class XValueFilterDialog(QDialog):
-    def __init__(self, parent: QWidget, title: str, values: list[str], selected_values: set[str], trans: dict):
+    def __init__(
+        self,
+        parent: QWidget,
+        title: str,
+        values: list[str],
+        selected_values: set[str],
+        trans: dict,
+        empty_selection_message: str | None = None,
+    ):
         super().__init__(parent)
         self._values = values
         self._selected_values = set(selected_values)
         self._trans = trans
+        self._empty_selection_message = empty_selection_message
 
         self.setWindowTitle(title)
         self.resize(520, 520)
@@ -1531,7 +1612,8 @@ class XValueFilterDialog(QDialog):
             QMessageBox.warning(
                 self,
                 self._trans.get("msg_error", "Error"),
-                self._trans.get("msg_no_x_values_selected", ""),
+                self._empty_selection_message
+                or self._trans.get("msg_no_x_values_selected", "No values selected. Please select at least one."),
             )
             return
         self._selected_values = set(checked)
