@@ -1,6 +1,7 @@
 import sys
 import pandas as pd
 import pickle
+import warnings
 import matplotlib
 try:
     matplotlib.use('QtAgg')
@@ -98,23 +99,37 @@ class GSEAVisualizationGUI(QMainWindow):
         self.plot_type_combo = QComboBox()
         self.plot_type_combo.addItems(["Dot Plot", "Bar Plot"])
         self.plot_type_combo.currentIndexChanged.connect(self.update_plot_options)
+        self.plot_type_combo.currentIndexChanged.connect(self.update_axis_hints)
         plot_type_layout.addWidget(self.plot_type_combo)
+
+        # 轴含义提示：明确X/Y分别是什么
+        self.axis_hint_label = QLabel("")
+        self.axis_hint_label.setWordWrap(True)
+        self.axis_hint_label.setStyleSheet("color: #444444; font-size: 11px;")
+        plot_type_layout.addWidget(self.axis_hint_label)
         
         tsv_layout.addWidget(plot_type_group)
         
         # 基本参数
         basic_param_group = QGroupBox(self.trans["basic_param_group"])
         basic_param_layout = QGridLayout(basic_param_group)
+
+        basic_param_layout.addWidget(QLabel(self.trans.get("term_column", "Y-axis (Term) Column:")), 0, 0)
+        self.term_column_combo = QComboBox()
+        self.term_column_combo.currentIndexChanged.connect(self.update_preview)
+        self.term_column_combo.currentIndexChanged.connect(self.update_axis_hints)
+        basic_param_layout.addWidget(self.term_column_combo, 0, 1)
         
-        basic_param_layout.addWidget(QLabel(self.trans["column"]), 0, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["column"]), 1, 0)
         self.column_combo = QComboBox()
         self.column_combo.currentIndexChanged.connect(self.update_preview)
-        basic_param_layout.addWidget(self.column_combo, 0, 1)
+        basic_param_layout.addWidget(self.column_combo, 1, 1)
         
-        basic_param_layout.addWidget(QLabel(self.trans["x_group"]), 1, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["x_group"]), 2, 0)
         self.x_combo = QComboBox()
         self.x_combo.currentIndexChanged.connect(self.update_preview)
         self.x_combo.currentIndexChanged.connect(self.on_x_column_changed)
+        self.x_combo.currentIndexChanged.connect(self.update_axis_hints)
 
         x_group_container = QWidget()
         x_group_v = QVBoxLayout(x_group_container)
@@ -134,30 +149,78 @@ class GSEAVisualizationGUI(QMainWindow):
         self.x_filter_status_label.setStyleSheet("color: #666666; font-size: 11px;")
         x_group_v.addWidget(self.x_filter_status_label)
 
-        basic_param_layout.addWidget(x_group_container, 1, 1)
+        basic_param_layout.addWidget(x_group_container, 2, 1)
         
-        basic_param_layout.addWidget(QLabel(self.trans["hue"]), 2, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["hue"]), 3, 0)
         self.hue_combo = QComboBox()
         self.hue_combo.currentIndexChanged.connect(self.update_preview)
-        basic_param_layout.addWidget(self.hue_combo, 2, 1)
+        basic_param_layout.addWidget(self.hue_combo, 3, 1)
         
-        basic_param_layout.addWidget(QLabel(self.trans["threshold"]), 3, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["threshold"]), 4, 0)
         self.thresh_spin = QDoubleSpinBox()
         self.thresh_spin.setRange(0, 1)
         self.thresh_spin.setDecimals(3)
         self.thresh_spin.setSingleStep(0.001)
         self.thresh_spin.setValue(0.05)
         self.thresh_spin.valueChanged.connect(self.update_preview)
-        basic_param_layout.addWidget(self.thresh_spin, 3, 1)
+        self.thresh_spin.valueChanged.connect(self.update_axis_hints)
+        basic_param_layout.addWidget(self.thresh_spin, 4, 1)
         
-        basic_param_layout.addWidget(QLabel(self.trans["top_term"]), 4, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["top_term"]), 5, 0)
         self.top_term_spin = QSpinBox()
-        self.top_term_spin.setRange(1, 100)
-        self.top_term_spin.setValue(5)
+        self.top_term_spin.setRange(1, 500)
+        self.top_term_spin.setValue(10)
         self.top_term_spin.valueChanged.connect(self.update_preview)
-        basic_param_layout.addWidget(self.top_term_spin, 4, 1)
+        self.top_term_spin.valueChanged.connect(self.update_axis_hints)
+        basic_param_layout.addWidget(self.top_term_spin, 5, 1)
+
+        self.top_term_per_group_check = QCheckBox(self.trans.get("top_term_per_group", "Top N per group"))
+        self.top_term_per_group_check.setChecked(True)
+        self.top_term_per_group_check.stateChanged.connect(self.update_preview)
+        self.top_term_per_group_check.stateChanged.connect(self.update_axis_hints)
+        basic_param_layout.addWidget(self.top_term_per_group_check, 6, 0, 1, 2)
+
+        # Hypergeometric/ORA 常见过滤与排序
+        filter_group = QGroupBox(self.trans.get("filter_sort_group", "Filter & Sort"))
+        filter_layout = QGridLayout(filter_group)
+
+        filter_layout.addWidget(QLabel(self.trans.get("sort_by", "Sort by:")), 0, 0)
+        self.sort_by_combo = QComboBox()
+        self.sort_by_combo.currentIndexChanged.connect(self.update_preview)
+        self.sort_by_combo.currentIndexChanged.connect(self.update_axis_hints)
+        filter_layout.addWidget(self.sort_by_combo, 0, 1)
+
+        filter_layout.addWidget(QLabel(self.trans.get("sort_order", "Order:")), 1, 0)
+        self.sort_order_combo = QComboBox()
+        self.sort_order_combo.addItems([
+            self.trans.get("sort_order_asc", "Ascending"),
+            self.trans.get("sort_order_desc", "Descending"),
+        ])
+        self.sort_order_combo.currentIndexChanged.connect(self.update_preview)
+        self.sort_order_combo.currentIndexChanged.connect(self.update_axis_hints)
+        filter_layout.addWidget(self.sort_order_combo, 1, 1)
+
+        filter_layout.addWidget(QLabel(self.trans.get("min_overlap", "Min overlap:")), 2, 0)
+        self.min_overlap_spin = QSpinBox()
+        self.min_overlap_spin.setRange(0, 10_000_000)
+        self.min_overlap_spin.setValue(0)
+        self.min_overlap_spin.valueChanged.connect(self.update_preview)
+        self.min_overlap_spin.valueChanged.connect(self.update_axis_hints)
+        filter_layout.addWidget(self.min_overlap_spin, 2, 1)
+
+        filter_layout.addWidget(QLabel(self.trans.get("min_gene_ratio", "Min gene ratio:")), 3, 0)
+        self.min_gene_ratio_spin = QDoubleSpinBox()
+        self.min_gene_ratio_spin.setRange(0, 1)
+        self.min_gene_ratio_spin.setDecimals(3)
+        self.min_gene_ratio_spin.setSingleStep(0.01)
+        self.min_gene_ratio_spin.setValue(0.0)
+        self.min_gene_ratio_spin.valueChanged.connect(self.update_preview)
+        self.min_gene_ratio_spin.valueChanged.connect(self.update_axis_hints)
+        filter_layout.addWidget(self.min_gene_ratio_spin, 3, 1)
+
+        tsv_layout.addWidget(filter_group)
         
-        basic_param_layout.addWidget(QLabel(self.trans["img_size"]), 5, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["img_size"]), 7, 0)
         size_layout = QHBoxLayout()
         self.width_spin = QSpinBox()
         self.width_spin.setRange(1, 20)
@@ -168,32 +231,32 @@ class GSEAVisualizationGUI(QMainWindow):
         size_layout.addWidget(self.width_spin)
         size_layout.addWidget(QLabel("x"))
         size_layout.addWidget(self.height_spin)
-        basic_param_layout.addLayout(size_layout, 5, 1)
+        basic_param_layout.addLayout(size_layout, 7, 1)
         
-        basic_param_layout.addWidget(QLabel(self.trans["title"]), 6, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["title"]), 8, 0)
         self.title_edit = QLineEdit("")
-        basic_param_layout.addWidget(self.title_edit, 6, 1)
+        basic_param_layout.addWidget(self.title_edit, 8, 1)
         
         # 在基本参数组中添加轴标签字体大小设置
-        basic_param_layout.addWidget(QLabel(self.trans["x_axis_fontsize"]), 7, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["x_axis_fontsize"]), 9, 0)
         self.x_axis_fontsize_spin = QSpinBox()
         self.x_axis_fontsize_spin.setRange(5, 24)
         self.x_axis_fontsize_spin.setValue(14)
-        basic_param_layout.addWidget(self.x_axis_fontsize_spin, 7, 1)
+        basic_param_layout.addWidget(self.x_axis_fontsize_spin, 9, 1)
         
-        basic_param_layout.addWidget(QLabel(self.trans["y_axis_fontsize"]), 8, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["y_axis_fontsize"]), 10, 0)
         self.y_axis_fontsize_spin = QSpinBox()
         self.y_axis_fontsize_spin.setRange(5, 24)
         self.y_axis_fontsize_spin.setValue(14)
-        basic_param_layout.addWidget(self.y_axis_fontsize_spin, 8, 1)
+        basic_param_layout.addWidget(self.y_axis_fontsize_spin, 10, 1)
 
         # Matplotlib主题/样式
-        basic_param_layout.addWidget(QLabel(self.trans["mpl_style"]), 9, 0)
+        basic_param_layout.addWidget(QLabel(self.trans["mpl_style"]), 11, 0)
         self.mpl_style_combo = QComboBox()
         self.mpl_style_combo.addItems(self.get_available_mpl_styles())
         self.mpl_style_combo.setCurrentText(self.mpl_style)
         self.mpl_style_combo.currentIndexChanged.connect(self.on_mpl_style_changed)
-        basic_param_layout.addWidget(self.mpl_style_combo, 9, 1)
+        basic_param_layout.addWidget(self.mpl_style_combo, 11, 1)
         
         tsv_layout.addWidget(basic_param_group)
 
@@ -423,10 +486,15 @@ class GSEAVisualizationGUI(QMainWindow):
             self.column_combo.clear()
             self.x_combo.clear()
             self.hue_combo.clear()
+            self.term_column_combo.clear()
+            self.sort_by_combo.clear()
             
             self.column_combo.addItems(self.column_names)
             self.x_combo.addItems(self.column_names)
+            self.hue_combo.addItem("")
             self.hue_combo.addItems(self.column_names)
+            self.term_column_combo.addItems(self.column_names)
+            self.sort_by_combo.addItems(self._get_sort_candidates(self.column_names))
             
             # 预设常见值（如果存在）
             self.set_default_columns()
@@ -496,8 +564,142 @@ class GSEAVisualizationGUI(QMainWindow):
             self.x_combo.setCurrentIndex(column_indices["x"])
             
         # 对于hue，默认使用与column相同的值
-        if "column" in column_indices:
-            self.hue_combo.setCurrentIndex(column_indices["column"])
+        try:
+            # hue_combo 第一个是空值，后面才是列名
+            if "column" in column_indices:
+                self.hue_combo.setCurrentIndex(column_indices["column"] + 1)
+        except Exception:
+            pass
+
+        # Term列：优先 Term / Name / Pathway / ID
+        term_idx = None
+        for priority_name in ["Term", "Name", "Pathway", "Description", "ID"]:
+            for i, name in enumerate(self.column_names):
+                if priority_name.lower() in name.lower():
+                    term_idx = i
+                    break
+            if term_idx is not None:
+                break
+        if term_idx is not None:
+            self.term_column_combo.setCurrentIndex(term_idx)
+
+        # 排序：优先 Adjusted P-value / P-value
+        for preferred in ["Adjusted P-value", "P-value"]:
+            idx = self.sort_by_combo.findText(preferred)
+            if idx >= 0:
+                self.sort_by_combo.setCurrentIndex(idx)
+                break
+
+        # 给常用控件加 tooltip，降低“Column/Hue/X含义不清晰”的困扰
+        try:
+            self.term_column_combo.setToolTip(self.trans.get("tip_term_column", ""))
+            self.column_combo.setToolTip(self.trans.get("tip_column", ""))
+            self.x_combo.setToolTip(self.trans.get("tip_x_group", ""))
+            self.hue_combo.setToolTip(self.trans.get("tip_hue", ""))
+            self.thresh_spin.setToolTip(self.trans.get("tip_threshold", ""))
+            self.top_term_spin.setToolTip(self.trans.get("tip_top_term", ""))
+            self.top_term_per_group_check.setToolTip(self.trans.get("tip_top_term_per_group", ""))
+            self.sort_by_combo.setToolTip(self.trans.get("tip_sort_by", ""))
+            self.sort_order_combo.setToolTip(self.trans.get("tip_sort_order", ""))
+            self.min_overlap_spin.setToolTip(self.trans.get("tip_min_overlap", ""))
+            self.min_gene_ratio_spin.setToolTip(self.trans.get("tip_min_gene_ratio", ""))
+        except Exception:
+            pass
+
+    def _get_sort_candidates(self, columns: list[str]) -> list[str]:
+        # 额外提供两个派生字段，方便 Hypergeometric 结果排序
+        base = [c for c in columns]
+        extra = ["Overlap (k)", "Gene Ratio (k/n)"]
+        # 保持顺序：常见列靠前
+        preferred = ["Adjusted P-value", "P-value", "Odds Ratio", "Combined Score", "Overlap", "Gene_set", "Term"]
+        ordered: list[str] = []
+        for p in preferred:
+            for c in base:
+                if c == p and c not in ordered:
+                    ordered.append(c)
+        for c in base:
+            if c not in ordered:
+                ordered.append(c)
+        ordered.extend(extra)
+        return ordered
+
+    def _parse_overlap(self, value: object) -> tuple[int | None, int | None, float | None]:
+        """Parse overlap string like '334/803' -> (k, n, k/n)."""
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            return None, None, None
+        text = str(value).strip()
+        if "/" in text:
+            parts = text.split("/", 1)
+            try:
+                k = int(float(parts[0]))
+                n = int(float(parts[1]))
+                ratio = (k / n) if n else None
+                return k, n, ratio
+            except Exception:
+                return None, None, None
+        return None, None, None
+
+    def _prepare_plot_df(self, plot_df: pd.DataFrame) -> pd.DataFrame:
+        """Apply term column mapping, ORA filters and sorting before plotting."""
+        df = plot_df.copy()
+
+        # Term 列映射：gseapy 习惯使用 'Term'
+        term_col = self.term_column_combo.currentText() if hasattr(self, "term_column_combo") else ""
+        if term_col and term_col in df.columns and term_col != "Term":
+            df["Term"] = df[term_col].astype(str)
+
+        # Overlap 派生字段（用于过滤/排序）
+        if "Overlap" in df.columns:
+            parsed = df["Overlap"].apply(self._parse_overlap)
+            df["__overlap_k"] = parsed.apply(lambda t: t[0] if t else None)
+            df["__gene_ratio"] = parsed.apply(lambda t: t[2] if t else None)
+
+            min_overlap = self.min_overlap_spin.value() if hasattr(self, "min_overlap_spin") else 0
+            if min_overlap and min_overlap > 0:
+                df = df[df["__overlap_k"].fillna(0) >= int(min_overlap)]
+
+            min_ratio = self.min_gene_ratio_spin.value() if hasattr(self, "min_gene_ratio_spin") else 0.0
+            if min_ratio and min_ratio > 0:
+                df = df[df["__gene_ratio"].fillna(0) >= float(min_ratio)]
+
+        # 排序
+        sort_by = self.sort_by_combo.currentText() if hasattr(self, "sort_by_combo") else ""
+        sort_order = self.sort_order_combo.currentText() if hasattr(self, "sort_order_combo") else ""
+        asc_text = self.trans.get("sort_order_asc", "Ascending")
+        descending = (sort_order != asc_text)
+
+        sort_key = None
+        if sort_by == "Overlap (k)" and "__overlap_k" in df.columns:
+            sort_key = "__overlap_k"
+        elif sort_by == "Gene Ratio (k/n)" and "__gene_ratio" in df.columns:
+            sort_key = "__gene_ratio"
+        elif sort_by in df.columns:
+            sort_key = sort_by
+
+        if sort_key:
+            # 对 p 值列：一般是越小越显著（升序）；其它如 Odds Ratio 越大越好（降序）
+            if sort_key.lower().find("p-value") >= 0 or sort_key.lower().find("pvalue") >= 0:
+                effective_asc = not descending
+            elif sort_key == "__overlap_k" or sort_key == "__gene_ratio":
+                effective_asc = not descending
+            else:
+                effective_asc = not descending
+
+            try:
+                df = df.sort_values(by=sort_key, ascending=effective_asc)
+            except Exception:
+                pass
+
+        # Top N：可选全局TopN（否则由 gseapy 依据 group/term 再截断）
+        try:
+            top_term = self.top_term_spin.value()
+            per_group = self.top_term_per_group_check.isChecked()
+            if not per_group and top_term and top_term > 0:
+                df = df.head(int(top_term))
+        except Exception:
+            pass
+
+        return df
     
     def update_plot_options(self):
         """根据绘图类型更新选项"""
@@ -509,6 +711,47 @@ class GSEAVisualizationGUI(QMainWindow):
         else:  # Bar Plot
             self.dot_param_group.hide()
             self.bar_param_group.show()
+
+        self.update_axis_hints()
+
+    def update_axis_hints(self, _=None):
+        """在界面上明确显示当前X轴/Y轴分别来自哪一列，以及Bar Plot X值含义。"""
+        if not hasattr(self, "axis_hint_label"):
+            return
+
+        plot_type = self.plot_type_combo.currentText() if hasattr(self, "plot_type_combo") else ""
+        x_col = self.x_combo.currentText() if hasattr(self, "x_combo") else ""
+        term_col = self.term_column_combo.currentText() if hasattr(self, "term_column_combo") else ""
+        sig_col = self.column_combo.currentText() if hasattr(self, "column_combo") else ""
+        hue_col = self.hue_combo.currentText() if hasattr(self, "hue_combo") else ""
+
+        # 轴解释（尽量不依赖 gseapy 内部实现细节，只说明用户关心的列映射）
+        if plot_type == "Bar Plot":
+            # gseapy barplot 通常用显著性列做条形长度（常见为 -log10(p) 的尺度），Y 轴为 Term
+            hint = self.trans.get("axis_hint_bar", "")
+            if not hint:
+                hint = (
+                    "X轴：显著性数值（由 ‘{sig}’ 计算，通常是 -log10(p/FDR) 的尺度）\n"
+                    "Y轴：条目名称（来自 ‘{term}’）\n"
+                    "分组：按 ‘{x}’ 分组显示（图例）"
+                )
+            text = hint.format(sig=sig_col or "(未选)", term=term_col or "(未选)", x=x_col or "(未选)")
+        else:
+            hint = self.trans.get("axis_hint_dot", "")
+            if not hint:
+                hint = (
+                    "X轴：分组类别（来自 ‘{x}’）\n"
+                    "Y轴：条目名称（来自 ‘{term}’）\n"
+                    "颜色/大小：由 ‘{sig}’ 控制；Hue（可选）：‘{hue}’"
+                )
+            text = hint.format(
+                x=x_col or "(未选)",
+                term=term_col or "(未选)",
+                sig=sig_col or "(未选)",
+                hue=hue_col or "(无)",
+            )
+
+        self.axis_hint_label.setText(text)
     
     def add_color(self):
         """添加颜色配置"""
@@ -749,15 +992,21 @@ class GSEAVisualizationGUI(QMainWindow):
                 QMessageBox.warning(self, self.trans["msg_error"], self.trans["msg_no_x_values_selected"])
                 return
 
+            # Hypergeometric/ORA: term列映射 + overlap过滤 + 排序/TopN
+            plot_df = self._prepare_plot_df(plot_df)
+
             # 预定义，避免在不同分支中出现未绑定变量
             legend_position = "best"
             bbox_to_anchor = None
             legend_loc = "best"
             need_reposition_legend = False
+            bar_legend_fontsize = 8
+            legend_bbox_transform = None
             
             # 只获取 Bar Plot 图例位置参数
             if plot_type == "Bar Plot":
                 legend_position = self.bar_legend_pos_combo.currentText()
+                bar_legend_fontsize = self.bar_legend_fontsize_spin.value() if hasattr(self, "bar_legend_fontsize_spin") else 8
 
             # 重要：不要先创建一张空fig再draw它。
             # 在不同版本 gseapy 中，dotplot/barplot 可能会忽略传入的ax/figsize并自行创建新figure。
@@ -777,7 +1026,7 @@ class GSEAVisualizationGUI(QMainWindow):
                     plot_df,
                     column=column,
                     x=x_group,
-                    hue=hue,
+                    hue=(hue if hue else None),
                     cutoff=thresh,
                     top_term=top_term,
                     size=dot_scale,
@@ -795,31 +1044,39 @@ class GSEAVisualizationGUI(QMainWindow):
                     bbox_to_anchor = (1, 0.5)
                     legend_loc = "center left"
                 elif legend_position == "center left":
-                    bbox_to_anchor = (0, 0.5)
-                    legend_loc = "center right"
-                elif legend_position == "center right":
-                    bbox_to_anchor = (1, 0.5)
+                    # 放到整张图最左侧，避免覆盖y轴长标签
+                    bbox_to_anchor = (0.01, 0.5)
                     legend_loc = "center left"
+                    legend_bbox_transform = "figure"
+                elif legend_position == "center right":
+                    bbox_to_anchor = (0.99, 0.5)
+                    legend_loc = "center right"
+                    legend_bbox_transform = "figure"
                 elif legend_position == "lower center":
-                    bbox_to_anchor = (0.5, 0)
-                    legend_loc = "upper center"
-                elif legend_position == "upper center":
-                    bbox_to_anchor = (0.5, 1)
+                    bbox_to_anchor = (0.5, 0.01)
                     legend_loc = "lower center"
+                    legend_bbox_transform = "figure"
+                elif legend_position == "upper center":
+                    bbox_to_anchor = (0.5, 0.99)
+                    legend_loc = "upper center"
+                    legend_bbox_transform = "figure"
                 else:  # best
                     bbox_to_anchor = None
                     legend_loc = "best"
                 
                 # 直接修改传给barplot调用的参数
-                result = barplot(
-                    plot_df,
-                    column=column,
-                    group=x_group,
-                    top_term=top_term,
-                    cutoff=thresh,
-                    title=title,
-                    color=color_dict,
-                )
+                with warnings.catch_warnings():
+                    # gseapy 内部对 pandas groupby.apply 的用法会触发 FutureWarning；这里局部静默避免干扰用户。
+                    warnings.simplefilter("ignore", FutureWarning)
+                    result = barplot(
+                        plot_df,
+                        column=column,
+                        group=x_group,
+                        top_term=top_term,
+                        cutoff=thresh,
+                        title=title,
+                        color=color_dict,
+                    )
                 need_reposition_legend = bool(bbox_to_anchor)
 
             # 兼容：gseapy 返回 Axes 或 Figure（不同版本可能不同）
@@ -852,11 +1109,72 @@ class GSEAVisualizationGUI(QMainWindow):
             # Bar Plot：在 ax 解析出来之后再重设图例位置
             if plot_type == "Bar Plot" and need_reposition_legend and bbox_to_anchor:
                 lgd = ax.get_legend()
+                # 关键：优先复用 gseapy 已生成的 legend 内容。
+                # 直接从 axes 推断 handles/labels 可能会拿到错误项（例如 p_inv）。
+                handles: list = []
+                labels: list[str] = []
+                legend_title: str = ""
+
                 if lgd is not None:
-                    handles = lgd.legendHandles
-                    labels = [t.get_text() for t in lgd.get_texts()]
-                    lgd.remove()
-                    ax.legend(handles, labels, loc=legend_loc, bbox_to_anchor=bbox_to_anchor)
+                    try:
+                        legend_title = lgd.get_title().get_text() if lgd.get_title() else ""
+                    except Exception:
+                        legend_title = ""
+
+                    # matplotlib 不同版本属性名不同：legendHandles / legend_handles
+                    try:
+                        if hasattr(lgd, "legend_handles") and getattr(lgd, "legend_handles"):
+                            handles = list(getattr(lgd, "legend_handles"))
+                        elif hasattr(lgd, "legendHandles") and getattr(lgd, "legendHandles"):
+                            handles = list(getattr(lgd, "legendHandles"))
+                    except Exception:
+                        handles = []
+
+                    try:
+                        labels = [t.get_text() for t in lgd.get_texts()]
+                    except Exception:
+                        labels = []
+
+                # 兜底：如果 legend 对象没给到内容，再从 axes 获取（但可能不可靠）
+                if not handles or not labels:
+                    try:
+                        handles, labels = ax.get_legend_handles_labels()
+                    except Exception:
+                        handles, labels = [], []
+
+                # 清洗掉 matplotlib 的内部/空标签
+                cleaned: list[tuple[object, str]] = []
+                for handle, label_text in zip(handles, labels):
+                    if not label_text or str(label_text).startswith("_"):
+                        continue
+                    cleaned.append((handle, str(label_text)))
+
+                # 避免出现 gseapy 内部字段（常见为 p_inv）污染 legend
+                if len(cleaned) > 1:
+                    cleaned = [(handle, label_text) for (handle, label_text) in cleaned if label_text != "p_inv"]
+
+                handles = [h for (h, _l) in cleaned]
+                labels = [_l for (_h, _l) in cleaned]
+
+                if lgd is not None:
+                    try:
+                        lgd.remove()
+                    except Exception:
+                        pass
+
+                if handles and labels:
+                    legend_kwargs: dict[str, object] = {
+                        "loc": legend_loc,
+                        "bbox_to_anchor": bbox_to_anchor,
+                        "fontsize": bar_legend_fontsize,
+                    }
+                    # 使用 figure 坐标把图例放到整张图边缘
+                    if legend_bbox_transform == "figure" and fig is not None:
+                        legend_kwargs["bbox_transform"] = fig.transFigure
+                    if legend_title:
+                        legend_kwargs["title"] = legend_title
+                        legend_kwargs["title_fontsize"] = bar_legend_fontsize
+                    ax.legend(handles, labels, **legend_kwargs)
 
             # 按用户设置强制figsize（直接改figure尺寸比传figsize给gseapy更稳定）
             try:
@@ -875,8 +1193,27 @@ class GSEAVisualizationGUI(QMainWindow):
             # 调整布局以适应图例
             if plot_type == "Bar Plot" and bbox_to_anchor:
                 fig.tight_layout()
-                if legend_position == "right":
-                    plt.subplots_adjust(right=0.8)
+                # 为不同方向的外置图例留空间，避免覆盖长标签
+                if legend_position in ("right", "center right"):
+                    try:
+                        fig.subplots_adjust(right=min(fig.subplotpars.right, 0.78))
+                    except Exception:
+                        plt.subplots_adjust(right=0.78)
+                elif legend_position == "center left":
+                    try:
+                        fig.subplots_adjust(left=max(fig.subplotpars.left, 0.55))
+                    except Exception:
+                        plt.subplots_adjust(left=0.55)
+                elif legend_position == "lower center":
+                    try:
+                        fig.subplots_adjust(bottom=max(fig.subplotpars.bottom, 0.18))
+                    except Exception:
+                        plt.subplots_adjust(bottom=0.18)
+                elif legend_position == "upper center":
+                    try:
+                        fig.subplots_adjust(top=min(fig.subplotpars.top, 0.85))
+                    except Exception:
+                        plt.subplots_adjust(top=0.85)
             else:
                 fig.tight_layout()
 
